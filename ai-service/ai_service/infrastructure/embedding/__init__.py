@@ -55,6 +55,5 @@ def build_embedding_provider(
     if name == "dinov2":
         return DinoV2Embedder(checkpoint=checkpoint, device=device)
     raise ValueError(
-        f"unknown embedding provider '{name}'; "
-        "known: ['local', 'siglip2', 'openclip', 'dinov2']"
+        f"unknown embedding provider '{name}'; known: ['local', 'siglip2', 'openclip', 'dinov2']"
     )
