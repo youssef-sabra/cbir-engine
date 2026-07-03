@@ -106,13 +106,9 @@ def main() -> None:
 
     failures = []
     if metrics[f"recall@{args.k}"] < args.min_recall:
-        failures.append(
-            f"recall@{args.k} {metrics[f'recall@{args.k}']:.3f} < {args.min_recall}"
-        )
+        failures.append(f"recall@{args.k} {metrics[f'recall@{args.k}']:.3f} < {args.min_recall}")
     if metrics[f"ndcg@{args.k}"] < args.min_ndcg:
-        failures.append(
-            f"ndcg@{args.k} {metrics[f'ndcg@{args.k}']:.3f} < {args.min_ndcg}"
-        )
+        failures.append(f"ndcg@{args.k} {metrics[f'ndcg@{args.k}']:.3f} < {args.min_ndcg}")
     if metrics["mrr"] < args.min_mrr:
         failures.append(f"mrr {metrics['mrr']:.3f} < {args.min_mrr}")
 

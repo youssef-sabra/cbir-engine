@@ -34,9 +34,11 @@ def configure_cors(app: FastAPI, allow_origins: str) -> None:
     development. In production set it to the dashboard's exact origin(s)."""
     if not allow_origins:
         return
-    origins = ["*"] if allow_origins.strip() == "*" else [
-        o.strip() for o in allow_origins.split(",") if o.strip()
-    ]
+    origins = (
+        ["*"]
+        if allow_origins.strip() == "*"
+        else [o.strip() for o in allow_origins.split(",") if o.strip()]
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
