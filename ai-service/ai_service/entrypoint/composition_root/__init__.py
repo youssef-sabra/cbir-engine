@@ -3,6 +3,8 @@ and wire the use cases into a stateless FastAPI app."""
 
 from __future__ import annotations
 
+from cbir_common.http import add_security_headers
+from cbir_common.observability import instrument
 from cbir_common.structured_logging import configure_logging
 from fastapi import FastAPI
 
@@ -38,6 +40,8 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         version=settings.service_version,
         description="Embedding generation and reranking (pluggable encoder).",
     )
+    instrument(app, settings.service_name)
+    add_security_headers(app)
     register_error_handlers(app)
     app.include_router(build_internal_router(use_cases))
 
