@@ -1,0 +1,24 @@
+# -----------------------------------------------------------------------------
+# Example local override file.
+#
+# Copy this to `docker-compose.override.yml` (gitignored) for developer-
+# specific tweaks — exposed ports, resource limits, mounted source directories
+# for hot-reload, etc. — without ever touching the shared docker-compose.yml.
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# `docker compose up` picks up docker-compose.override.yml automatically.
+# -----------------------------------------------------------------------------
+
+services:
+  hello-world-service:
+    # Example: mount source locally for live-reload during development
+    volumes:
+      - ./hello-world-service/app:/app/app
+    environment:
+      LOG_LEVEL: debug
+
+  postgres:
+    # Example: expose on a non-default host port if 5432 is already in use locally
+    ports:
+      - "5433:5432"

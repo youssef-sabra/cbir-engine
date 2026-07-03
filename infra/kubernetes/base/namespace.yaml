@@ -1,0 +1,10 @@
+# Cloud-agnostic: a plain Kubernetes Namespace object, identical on GKE, EKS,
+# AKS, or a local kind/minikube cluster (though this project does not use
+# local Kubernetes -- see docs/TECH_STACK.md and the Milestone 1 design notes
+# on why Docker Compose was chosen instead for local development).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cbir-engine
+  labels:
+    app.kubernetes.io/part-of: cbir-engine

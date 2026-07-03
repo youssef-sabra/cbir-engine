@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) ONLY when you deliberately decide to
+# deploy this environment. Not required, read, or used during local
+# development or by the CI pipeline in Milestone 1.
+
+gcp_project_id   = "your-gcp-project-id"
+environment_name = "production"
+region           = "us-central1"

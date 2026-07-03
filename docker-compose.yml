@@ -1,0 +1,168 @@
+# -----------------------------------------------------------------------------
+# Local development stack.
+#
+# Every service here speaks an open, portable protocol (Postgres wire protocol,
+# Redis protocol, the S3 API) so that swapping the underlying implementation
+# for a managed cloud service later never requires application code changes —
+# only different connection values (see .env.example and infra/README.md).
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up --build
+# -----------------------------------------------------------------------------
+
+name: cbir-engine
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL + pgvector.
+  # System of record for tenants/catalog/billing metadata, and small-scale
+  # vector search per docs/TECH_STACK.md. Production equivalent: Cloud SQL /
+  # RDS / Azure Database for PostgreSQL — same wire protocol, no code changes.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cbir-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cbir}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cbir_local_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cbir}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cbir} -d ${POSTGRES_DB:-cbir}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # Redis.
+  # Cache, task queue backend, and rate-limit counters (docs/ARCHITECTURE.md
+  # Section 9). Production equivalent: Memorystore / ElastiCache / Azure Cache
+  # for Redis.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: cbir-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # Qdrant.
+  # Primary vector database for ANN search (docs/TECH_STACK.md Section 3).
+  # Runs identically here, on a VM in any cloud, or as Qdrant Cloud —
+  # self-hosted and never a proprietary vector API.
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cbir-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # MinIO.
+  # S3-API-compatible object storage — the local stand-in for GCS/S3/Azure
+  # Blob. Because the application only ever speaks the S3 API contract
+  # (never a cloud SDK's proprietary client), this is a drop-in swap for a
+  # managed bucket in production.
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: cbir-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cbir_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-cbir_local_dev_password}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # hello-world-service.
+  # Temporary, throwaway service whose only job is to prove the pipeline
+  # (build -> containerize -> compose network -> health check) works end to
+  # end before any real business logic exists. Removed once auth-service
+  # (Milestone 2) exists. See hello-world-service/README.md.
+  # ---------------------------------------------------------------------------
+  hello-world-service:
+    build:
+      context: ./hello-world-service
+      dockerfile: Dockerfile
+    container_name: cbir-hello-world-service
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: ${SERVICE_NAME:-hello-world-service}
+      SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      QDRANT_HOST: ${QDRANT_HOST:-qdrant}
+      QDRANT_HTTP_PORT: ${QDRANT_HTTP_PORT:-6333}
+      MINIO_HOST: minio
+      MINIO_API_PORT: ${MINIO_API_PORT:-9000}
+    ports:
+      - "${HELLO_WORLD_SERVICE_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+networks:
+  cbir-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  minio_data:
