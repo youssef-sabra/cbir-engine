@@ -18,7 +18,9 @@ from sqlalchemy import text
 
 from catalog_service.application.ports import SystemClock
 from catalog_service.application.use_cases.bundle import UseCaseBundle
+from catalog_service.application.use_cases.feedback import SubmitFeedback
 from catalog_service.application.use_cases.items import (
+    BatchRegisterCatalogItems,
     ConfirmCatalogItemUpload,
     DeleteCatalogItem,
     GetCatalogItem,
@@ -26,13 +28,18 @@ from catalog_service.application.use_cases.items import (
     RegisterCatalogItem,
 )
 from catalog_service.infrastructure.config import Settings
+from catalog_service.infrastructure.messaging import RedisIngestionQueue
 from catalog_service.infrastructure.object_storage import S3ObjectStorage
 from catalog_service.infrastructure.persistence import build_session_factory
 from catalog_service.interface_adapters.controllers import (
+    build_feedback_router,
     build_items_router,
     register_error_handlers,
 )
-from catalog_service.interface_adapters.gateways import SqlAlchemyCatalogItemRepository
+from catalog_service.interface_adapters.gateways import (
+    SqlAlchemyCatalogItemRepository,
+    SqlAlchemyFeedbackRepository,
+)
 
 UnitOfWorkFactory = Callable[[], AbstractContextManager[UseCaseBundle]]
 
@@ -48,8 +55,11 @@ def build_app(
 
     storage: S3ObjectStorage | None = None
     auth_client: AuthServiceClient | None = None
+    queue: RedisIngestionQueue | None = None
 
     if unit_of_work_factory is None:
+        import redis
+
         session_factory = build_session_factory(settings.database_url)
         storage = S3ObjectStorage(
             endpoint_url=settings.s3_endpoint_url,
@@ -59,6 +69,7 @@ def build_app(
             bucket=settings.s3_bucket_name,
             region=settings.s3_region,
         )
+        queue = RedisIngestionQueue(redis.Redis.from_url(settings.redis_url))
         clock = SystemClock()
 
         @contextmanager
@@ -66,20 +77,24 @@ def build_app(
             session = session_factory()
             try:
                 items = SqlAlchemyCatalogItemRepository(session)
+                feedback = SqlAlchemyFeedbackRepository(session)
+                register = RegisterCatalogItem(
+                    items,
+                    storage,
+                    clock,
+                    allowed_content_types=settings.allowed_content_types,
+                    upload_url_ttl_seconds=settings.upload_url_ttl_seconds,
+                )
                 yield UseCaseBundle(
-                    register_item=RegisterCatalogItem(
-                        items,
-                        storage,
-                        clock,
-                        allowed_content_types=settings.allowed_content_types,
-                        upload_url_ttl_seconds=settings.upload_url_ttl_seconds,
-                    ),
-                    confirm_upload=ConfirmCatalogItemUpload(items, storage, clock),
+                    register_item=register,
+                    batch_register=BatchRegisterCatalogItems(register),
+                    confirm_upload=ConfirmCatalogItemUpload(items, storage, queue, clock),
                     get_item=GetCatalogItem(
                         items, storage, download_url_ttl_seconds=settings.download_url_ttl_seconds
                     ),
                     list_items=ListCatalogItems(items),
                     delete_item=DeleteCatalogItem(items, storage),
+                    submit_feedback=SubmitFeedback(items, feedback),
                 )
                 session.commit()
             except Exception:
@@ -117,6 +132,7 @@ def build_app(
     )
     register_error_handlers(app)
     app.include_router(build_items_router(unit_of_work_factory, require_read, require_write))
+    app.include_router(build_feedback_router(unit_of_work_factory, require_write))
 
     readiness_session_factory = build_session_factory(settings.database_url)
 
@@ -139,6 +155,8 @@ def build_app(
             results["postgres"] = {"reachable": False}
         if storage is not None:
             results["object_storage"] = {"reachable": storage.reachable()}
+        if queue is not None:
+            results["ingestion_queue"] = {"reachable": queue.reachable()}
         if auth_client is not None:
             results["auth_service"] = {"reachable": auth_client.health_reachable()}
         all_ok = all(r["reachable"] for r in results.values())

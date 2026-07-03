@@ -13,8 +13,14 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://cbir:cbir_local_dev_password@localhost:5432/cbir"
 
+    # Redis backs the ingestion queue the worker consumes (Milestone 4).
+    redis_url: str = "redis://localhost:6379/0"
+
     # Gateway-role validation endpoint (see cbir_common.auth).
     auth_service_url: str = "http://localhost:8001"
+
+    # Cap on items registrable in one batch call (protects the API).
+    max_batch_items: int = 1000
 
     # Object storage via the S3 API contract. s3_endpoint_url is where THIS
     # SERVICE talks to storage; s3_presign_endpoint_url is the host embedded

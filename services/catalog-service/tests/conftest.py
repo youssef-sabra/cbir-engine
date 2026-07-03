@@ -15,12 +15,16 @@ from fastapi.testclient import TestClient
 
 from catalog_service.application.ports import (
     Clock,
+    IngestionJob,
+    IngestionQueuePort,
     ObjectStat,
     ObjectStoragePort,
     PresignedUpload,
 )
 from catalog_service.application.use_cases.bundle import UseCaseBundle
+from catalog_service.application.use_cases.feedback import SubmitFeedback
 from catalog_service.application.use_cases.items import (
+    BatchRegisterCatalogItems,
     ConfirmCatalogItemUpload,
     DeleteCatalogItem,
     GetCatalogItem,
@@ -28,7 +32,10 @@ from catalog_service.application.use_cases.items import (
     RegisterCatalogItem,
 )
 from catalog_service.domain.entities import CatalogItem
-from catalog_service.domain.repository_interfaces import CatalogItemRepository
+from catalog_service.domain.repository_interfaces import (
+    CatalogItemRepository,
+    FeedbackRepository,
+)
 from catalog_service.entrypoint.composition_root import build_app
 from catalog_service.infrastructure.config import Settings
 
@@ -58,8 +65,12 @@ class InMemoryCatalogItemRepository(CatalogItemRepository):
             None,
         )
 
-    def list_for_tenant(self, tenant_id: TenantId, limit: int, offset: int) -> list[CatalogItem]:
+    def list_for_tenant(
+        self, tenant_id: TenantId, limit: int, offset: int, status=None
+    ) -> list[CatalogItem]:
         mine = [i for i in self.rows.values() if str(i.tenant_id) == str(tenant_id)]
+        if status is not None:
+            mine = [i for i in mine if i.status is status]
         return mine[offset : offset + limit]
 
     def update(self, item: CatalogItem) -> None:
@@ -108,6 +119,25 @@ class FakeObjectStorage(ObjectStoragePort):
         self.objects.pop(object_key, None)
 
 
+class FakeIngestionQueue(IngestionQueuePort):
+    def __init__(self) -> None:
+        self.jobs: list[IngestionJob] = []
+
+    def enqueue(self, job: IngestionJob) -> None:
+        self.jobs.append(job)
+
+    def reachable(self) -> bool:
+        return True
+
+
+class InMemoryFeedbackRepository(FeedbackRepository):
+    def __init__(self) -> None:
+        self.rows: list[tuple] = []
+
+    def add(self, feedback_id, item_id, query_ref, relevant) -> None:
+        self.rows.append((feedback_id, item_id, query_ref, relevant))
+
+
 class MutableClock(Clock):
     def __init__(self) -> None:
         self.current = datetime(2026, 7, 3, 12, 0, 0, tzinfo=timezone.utc)
@@ -140,22 +170,29 @@ class World:
     def __init__(self) -> None:
         self.items = InMemoryCatalogItemRepository()
         self.storage = FakeObjectStorage()
+        self.queue = FakeIngestionQueue()
+        self.feedback = InMemoryFeedbackRepository()
         self.clock = MutableClock()
         self.auth = SwitchableAuth()
 
     def bundle(self) -> UseCaseBundle:
+        register = RegisterCatalogItem(
+            self.items,
+            self.storage,
+            self.clock,
+            allowed_content_types=ALLOWED_TYPES,
+            upload_url_ttl_seconds=900,
+        )
         return UseCaseBundle(
-            register_item=RegisterCatalogItem(
-                self.items,
-                self.storage,
-                self.clock,
-                allowed_content_types=ALLOWED_TYPES,
-                upload_url_ttl_seconds=900,
+            register_item=register,
+            batch_register=BatchRegisterCatalogItems(register),
+            confirm_upload=ConfirmCatalogItemUpload(
+                self.items, self.storage, self.queue, self.clock
             ),
-            confirm_upload=ConfirmCatalogItemUpload(self.items, self.storage, self.clock),
             get_item=GetCatalogItem(self.items, self.storage, download_url_ttl_seconds=900),
             list_items=ListCatalogItems(self.items),
             delete_item=DeleteCatalogItem(self.items, self.storage),
+            submit_feedback=SubmitFeedback(self.items, self.feedback),
         )
 
 

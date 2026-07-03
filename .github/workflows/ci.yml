@@ -44,6 +44,9 @@ jobs:
           - shared/common-libs
           - services/auth-service
           - services/catalog-service
+          - ai-service
+          - workers/ingestion-worker
+          - services/query-service
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,6 +94,9 @@ jobs:
         run: |
           podman build -f services/auth-service/Dockerfile -t auth-service:ci .
           podman build -f services/catalog-service/Dockerfile -t catalog-service:ci .
+          podman build -f ai-service/Dockerfile -t ai-service:ci .
+          podman build -f workers/ingestion-worker/Dockerfile -t ingestion-worker:ci .
+          podman build -f services/query-service/Dockerfile -t query-service:ci .
 
       - name: Prepare .env for compose
         run: cp .env.example .env
@@ -120,28 +126,15 @@ jobs:
           docker compose logs
           exit 1
 
-      - name: Verify auth-service readiness (postgres + redis reachable)
+      - name: Verify service readiness (all dependencies reachable)
         run: |
-          curl -sf http://localhost:8001/readyz | tee /dev/stderr | grep -q '"status":"ok"'
+          for port in 8001 8002 8003 8004; do
+            echo "readyz :$port"
+            curl -sf "http://localhost:${port}/readyz" | tee /dev/stderr | grep -q '"status":"ok"'
+          done
 
-      - name: Verify catalog-service readiness (postgres + storage + auth reachable)
-        run: |
-          curl -sf http://localhost:8002/readyz | tee /dev/stderr | grep -q '"status":"ok"'
-
-      - name: Smoke-test the end-to-end auth + catalog flow
-        run: |
-          set -e
-          # Provision a tenant + key, then use the key to register a catalog item.
-          python scripts/provision_tenant.py --name ci-smoke > provision.txt
-          cat provision.txt
-          API_KEY=$(grep -A1 'shown once' provision.txt | tail -1 | tr -d ' ')
-          echo "Registering a catalog item with the issued key..."
-          curl -sf -X POST http://localhost:8002/v1/items \
-            -H "X-API-Key: ${API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"content_type":"image/jpeg","metadata":{"category":"smoke"}}' \
-            | tee /dev/stderr | grep -q '"status":"pending_upload"'
-          echo "End-to-end auth + catalog smoke test passed."
+      - name: Smoke-test the full ingest -> index -> search pipeline
+        run: python scripts/smoke_pipeline.py
 
       - name: Dump logs on failure
         if: failure()

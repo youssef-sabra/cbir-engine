@@ -12,9 +12,13 @@ This repository implements the plan described in `docs/`:
 - `docs/MILESTONES.md` — the 12-milestone build plan
 - `docs/CLEAN_ARCHITECTURE.md` — project structure rationale
 
-This repository currently contains the results of **Milestones 1–3**: the local-first infrastructure
-foundation, the authentication/multi-tenancy layer (`auth-service`), and the data & storage foundation
-(`catalog-service`). See `docs/MILESTONES.md` for the full plan and per-milestone status.
+This repository currently contains the results of **Milestones 1–9**: the local-first infrastructure
+foundation; authentication/multi-tenancy (`auth-service`); the data & storage foundation
+(`catalog-service`); the asynchronous ingestion pipeline (`ingestion-worker`); the embedding + reranking
+service (`ai-service`); vector search over Qdrant; and the core + compositional search API
+(`query-service`) with caching. See `docs/MILESTONES.md` for the full plan and per-milestone status, and
+`docs/MILESTONES_4_TO_9_COMPLETION_REPORT.md` for the retrieval-pipeline details (including why the default
+encoder is a CPU-only local embedder with SigLIP 2 / DINOv2 as swap-in adapters).
 
 ---
 
@@ -35,13 +39,18 @@ This starts the backing services:
 - `qdrant` — vector database (primary ANN search engine; used from Milestone 6)
 - `minio` — S3-compatible object storage (stand-in for GCS/S3/Azure Blob)
 
-…and the application services (each runs its own DB migrations on start):
+…and the application services:
 - `auth-service` (`http://localhost:8001`) — tenants, API keys, access tokens, rate limiting
-- `catalog-service` (`http://localhost:8002`) — catalog item metadata + signed-URL image storage
+- `catalog-service` (`http://localhost:8002`) — catalog item metadata + signed-URL image storage + ingestion enqueue
+- `ai-service` (`http://localhost:8003`) — embedding generation + reranking (internal API)
+- `query-service` (`http://localhost:8004`) — image / text / compositional search
+- `ingestion-worker` — background queue consumer (no HTTP port): dedup → embed → index
 
 Once running, check readiness (verifies each service can reach its backends over the Compose network):
 - `GET http://localhost:8001/readyz` — auth-service (postgres + redis)
-- `GET http://localhost:8002/readyz` — catalog-service (postgres + object storage + auth-service)
+- `GET http://localhost:8002/readyz` — catalog-service (postgres + object storage + queue + auth-service)
+- `GET http://localhost:8003/readyz` — ai-service (encoder loaded)
+- `GET http://localhost:8004/readyz` — query-service (ai-service + vector db + cache + auth-service)
 
 **Provision a tenant and issue an API key**, then use it:
 

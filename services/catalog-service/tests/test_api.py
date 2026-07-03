@@ -23,7 +23,7 @@ class TestRegisterAndUploadFlow:
         assert response.status_code == 409
         assert "signed URL" in response.json()["detail"]
 
-    def test_confirm_after_upload_marks_uploaded_with_size(self, client, world):
+    def test_confirm_after_upload_queues_ingestion_with_size(self, client, world):
         body = register_item(client)
         item_id = body["item"]["id"]
         object_key = f"tenants/{world.auth.tenant_id}/items/{item_id}"
@@ -31,8 +31,11 @@ class TestRegisterAndUploadFlow:
 
         response = client.post(f"/v1/items/{item_id}/confirm")
         assert response.status_code == 200
-        assert response.json()["status"] == "uploaded"
+        # Confirmation transitions to QUEUED and enqueues an ingestion job.
+        assert response.json()["status"] == "queued"
         assert response.json()["size_bytes"] == 1234
+        assert len(world.queue.jobs) == 1
+        assert world.queue.jobs[0].item_id == item_id
 
     def test_download_url_only_after_upload(self, client, world):
         body = register_item(client)

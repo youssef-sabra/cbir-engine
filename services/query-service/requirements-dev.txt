@@ -1,0 +1,5 @@
+-r requirements.txt
+-e ../../shared/domain-kernel
+-e ../../shared/common-libs
+pytest==8.3.3
+ruff==0.7.4

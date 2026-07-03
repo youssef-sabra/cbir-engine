@@ -473,12 +473,12 @@ repository root.
 | 1 | Foundations & DevOps Infrastructure | M | — | ✅ Completed |
 | 2 | Authentication, Multi-Tenancy & Tenant Management | M | M1 | ✅ Completed |
 | 3 | Data Layer & Storage Foundation | M | M1, M2 | ✅ Completed |
-| 4 | Catalog Ingestion Pipeline | L | M2, M3 | ⏳ Not started |
-| 5 | Embedding Service & Model Integration | L | M1, M4 | ⏳ Not started |
-| 6 | Vector Database & ANN Search Integration | L | M3, M5 | ⏳ Not started |
-| 7 | Core Search API (Image & Text Query) | L | M2, M5, M6 | ⏳ Not started |
-| 8 | Caching & Performance Optimization | M | M4, M7 | ⏳ Not started |
-| 9 | Reranking & Compositional Query (Differentiation) | XL | M5, M7, M8 | ⏳ Not started |
+| 4 | Catalog Ingestion Pipeline | L | M2, M3 | ✅ Completed |
+| 5 | Embedding Service & Model Integration | L | M1, M4 | ✅ Completed (local encoder; SigLIP2/DINOv2 swappable) |
+| 6 | Vector Database & ANN Search Integration | L | M3, M5 | ✅ Completed |
+| 7 | Core Search API (Image & Text Query) | L | M2, M5, M6 | ✅ Completed |
+| 8 | Caching & Performance Optimization | M | M4, M7 | ✅ Completed |
+| 9 | Reranking & Compositional Query (Differentiation) | XL | M5, M7, M8 | ✅ Core completed (MLLM rerank + fine-tuning = seams) |
 | 10 | Monitoring, Logging & Observability | M | M1–M9 | ⏳ Not started |
 | 11 | Frontend Dashboard, SDKs & Developer Experience | L | M2, M4, M7, M10 | ⏳ Not started |
 | 12 | Beta Hardening, Security Review & GA Launch | XL | M1–M11 | ⏳ Not started |
