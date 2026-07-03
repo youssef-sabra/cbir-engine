@@ -12,7 +12,9 @@ This repository implements the plan described in `docs/`:
 - `docs/MILESTONES.md` — the 12-milestone build plan
 - `docs/CLEAN_ARCHITECTURE.md` — project structure rationale
 
-You are currently looking at the result of **Milestone 1 — Foundations & DevOps Infrastructure**.
+This repository currently contains the results of **Milestones 1–3**: the local-first infrastructure
+foundation, the authentication/multi-tenancy layer (`auth-service`), and the data & storage foundation
+(`catalog-service`). See `docs/MILESTONES.md` for the full plan and per-milestone status.
 
 ---
 
@@ -27,44 +29,51 @@ cp .env.example .env
 docker compose up --build
 ```
 
-This starts:
+This starts the backing services:
 - `postgres` — PostgreSQL with the `pgvector` extension (system of record + small-scale vector search)
 - `redis` — cache, queue backend, rate limiting
-- `qdrant` — vector database (primary ANN search engine)
+- `qdrant` — vector database (primary ANN search engine; used from Milestone 6)
 - `minio` — S3-compatible object storage (stand-in for GCS/S3/Azure Blob)
-- `hello-world-service` — a minimal FastAPI service that proves the whole stack wires together correctly
 
-Once running, check:
-- `GET http://localhost:8000/health` — liveness check
-- `GET http://localhost:8000/readyz` — readiness check; verifies the service can reach Postgres, Redis,
-  Qdrant, and MinIO over the Compose network
+…and the application services (each runs its own DB migrations on start):
+- `auth-service` (`http://localhost:8001`) — tenants, API keys, access tokens, rate limiting
+- `catalog-service` (`http://localhost:8002`) — catalog item metadata + signed-URL image storage
+
+Once running, check readiness (verifies each service can reach its backends over the Compose network):
+- `GET http://localhost:8001/readyz` — auth-service (postgres + redis)
+- `GET http://localhost:8002/readyz` — catalog-service (postgres + object storage + auth-service)
+
+**Provision a tenant and issue an API key**, then use it:
+
+```
+python scripts/provision_tenant.py --name my-tenant
+# copy the printed API key, then:
+curl -X POST http://localhost:8002/v1/items \
+  -H "X-API-Key: <key>" -H "Content-Type: application/json" \
+  -d '{"content_type":"image/jpeg","metadata":{"category":"demo"}}'
+```
 
 Tear down with `docker compose down` (add `-v` to also remove data volumes).
 
-A `Makefile` wraps the common commands — run `make help` to see them.
-
----
-
-## Why a "hello world" service exists
-
-`hello-world-service/` is intentionally throwaway. Its only job is to prove that the build → lint → test →
-containerize → compose-up → health-check pipeline works end to end, before any real business logic exists.
-It will be deleted once Milestone 2's `auth-service` has something real to deploy in its place.
+A `Makefile` wraps the common commands — run `make help` to see them (including `make db-backup` /
+`make db-restore`, documented in `docs/RUNBOOK_BACKUP_RESTORE.md`).
 
 ---
 
 ## Repository layout
 
 ```
-services/            Backend services (auth, catalog, query, tenant, admin) — populated from Milestone 2 onward
+services/            Backend services. Implemented: auth-service (M2), catalog-service (M3).
+                     Reserved: query, tenant, admin — populated in later milestones.
 ai-service/           Embedding + reranking + fine-tuning service — populated from Milestone 5 onward
 workers/              Background workers (ingestion, reindex, notification) — populated from Milestone 4 onward
 frontend/             Web dashboard — populated from Milestone 11 onward
 sdks/                 Client SDKs — populated from Milestone 11 onward
-shared/               Minimal cross-service kernel + common libs (see docs/CLEAN_ARCHITECTURE.md, Section 5)
+shared/               Minimal cross-service kernel + common libs (see docs/CLEAN_ARCHITECTURE.md, Section 5).
+                     Implemented: domain-kernel (TenantId), common-libs (logging, JWT contract, gateway auth)
+scripts/              Operational scripts (tenant provisioning, DB backup/restore)
 tests/e2e/            Cross-service end-to-end tests
-docs/                 Living planning documents (PRD, architecture, milestones, etc.)
-hello-world-service/  Temporary pipeline-validation service (Milestone 1 only)
+docs/                 Living planning documents (PRD, architecture, milestones, runbooks, etc.)
 infra/                Infrastructure: Terraform (cloud-agnostic) + Kubernetes + CI definitions
 ```
 

@@ -11,14 +11,20 @@
 # -----------------------------------------------------------------------------
 
 services:
-  hello-world-service:
-    # Example: mount source locally for live-reload during development
+  auth-service:
+    # Example: mount source locally for live-reload during development.
     volumes:
-      - ./hello-world-service/app:/app/app
-    environment:
-      LOG_LEVEL: debug
+      - ./services/auth-service/auth_service:/app/auth_service
+    command: ["uvicorn", "auth_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  catalog-service:
+    # Example: mount source locally for live-reload during development.
+    volumes:
+      - ./services/catalog-service/catalog_service:/app/catalog_service
+    command: ["uvicorn", "catalog_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   postgres:
-    # Example: expose on a non-default host port if 5432 is already in use locally
+    # Example: expose on a non-default host port if 5432 is already in use locally.
+    # (Prefer POSTGRES_HOST_PORT in .env; this shows the override mechanism.)
     ports:
       - "5433:5432"

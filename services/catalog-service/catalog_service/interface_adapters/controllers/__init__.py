@@ -45,9 +45,7 @@ def build_items_router(
     router = APIRouter(prefix="/v1/items", tags=["catalog"])
 
     @router.post("", status_code=201, response_model=presenters.RegisteredItemResponse)
-    def register_item(
-        body: RegisterItemRequest, context: TenantContext = Depends(require_write)
-    ):
+    def register_item(body: RegisterItemRequest, context: TenantContext = Depends(require_write)):
         with uow() as use_cases:
             output = use_cases.register_item.execute(
                 RegisterItemInput(
@@ -59,9 +57,7 @@ def build_items_router(
             )
         return presenters.present_registered(output)
 
-    @router.post(
-        "/{item_id}/confirm", response_model=presenters.ItemResponse
-    )
+    @router.post("/{item_id}/confirm", response_model=presenters.ItemResponse)
     def confirm_upload(item_id: str, context: TenantContext = Depends(require_write)):
         with uow() as use_cases:
             output = use_cases.confirm_upload.execute(context.tenant_id, item_id)

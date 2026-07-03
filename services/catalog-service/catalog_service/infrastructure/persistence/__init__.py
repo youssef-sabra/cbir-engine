@@ -107,9 +107,7 @@ class AdapterVersionRow(Base):
     """Per-tenant fine-tuned adapter versions (owner-to-be: ai-service)."""
 
     __tablename__ = "adapter_versions"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "version", name="uq_adapter_tenant_version"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "version", name="uq_adapter_tenant_version"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)

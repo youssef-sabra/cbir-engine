@@ -119,39 +119,68 @@ services:
       - cbir-network
 
   # ---------------------------------------------------------------------------
-  # hello-world-service.
-  # Temporary, throwaway service whose only job is to prove the pipeline
-  # (build -> containerize -> compose network -> health check) works end to
-  # end before any real business logic exists. Removed once auth-service
-  # (Milestone 2) exists. See hello-world-service/README.md.
+  # auth-service (Milestone 2).
+  # Tenant identity, API key lifecycle, access-token issuance, rate limiting.
+  # Every other service validates credentials through this one. Its image is
+  # built from the REPOSITORY ROOT context so it can bundle the shared/
+  # packages (see services/auth-service/Dockerfile).
   # ---------------------------------------------------------------------------
-  hello-world-service:
+  auth-service:
     build:
-      context: ./hello-world-service
-      dockerfile: Dockerfile
-    container_name: cbir-hello-world-service
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: cbir-auth-service
     restart: unless-stopped
     environment:
-      SERVICE_NAME: ${SERVICE_NAME:-hello-world-service}
-      SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      QDRANT_HOST: ${QDRANT_HOST:-qdrant}
-      QDRANT_HTTP_PORT: ${QDRANT_HTTP_PORT:-6333}
-      MINIO_HOST: ${MINIO_HOST:-minio}
-      MINIO_API_PORT: ${MINIO_API_PORT:-9000}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cbir}:${POSTGRES_PASSWORD:-cbir_local_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-cbir}
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-local-dev-jwt-secret-not-for-production}
+      AUTH_ADMIN_TOKEN: ${AUTH_ADMIN_TOKEN:-local-dev-admin-token}
     ports:
-      - "${HELLO_WORLD_SERVICE_HOST_PORT:-8000}:8000"
+      - "${AUTH_SERVICE_HOST_PORT:-8001}:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # catalog-service (Milestone 3).
+  # Catalog item metadata (PostgreSQL), raw images (MinIO via signed URLs),
+  # right-to-erasure deletion. Validates credentials through auth-service.
+  # S3_PRESIGN_ENDPOINT_URL is the host-reachable MinIO endpoint baked into
+  # signed URLs handed to clients; S3_ENDPOINT_URL is how this container
+  # reaches MinIO on the Compose network (see catalog-service README).
+  # ---------------------------------------------------------------------------
+  catalog-service:
+    build:
+      context: .
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: cbir-catalog-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cbir}:${POSTGRES_PASSWORD:-cbir_local_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-cbir}
+      AUTH_SERVICE_URL: http://auth-service:8000
+      S3_ENDPOINT_URL: http://${MINIO_HOST:-minio}:${MINIO_API_PORT:-9000}
+      S3_PRESIGN_ENDPOINT_URL: ${S3_PRESIGN_ENDPOINT_URL:-http://localhost:9000}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-cbir_minio_admin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-cbir_local_dev_password}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-cbir-catalog-images}
+    ports:
+      - "${CATALOG_SERVICE_HOST_PORT:-8002}:8000"
+    depends_on:
+      postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

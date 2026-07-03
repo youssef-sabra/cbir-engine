@@ -1,9 +1,18 @@
 # services/
 
-**Status: reserved, not yet populated.**
+Request-serving backend services. Each is independently deployable and internally follows the same
+four-layer Clean Architecture structure (`docs/CLEAN_ARCHITECTURE.md` Section 3):
+`domain/ → application/ → interface_adapters/ → infrastructure/`, wired only in
+`entrypoint/composition_root`.
 
-Backend services (auth-service, catalog-service, query-service, tenant-service, admin-service). Populated from Milestone 2 onward. Each will follow the Clean Architecture layout documented in docs/CLEAN_ARCHITECTURE.md.
+| Service | Status | Milestone | Purpose |
+|---|---|---|---|
+| `auth-service` | ✅ Implemented | M2 | Tenant identity, API keys, access tokens, rate limiting |
+| `catalog-service` | ✅ Implemented | M3 | Catalog item metadata + signed-URL object storage + erasure |
+| `query-service` | Reserved | M7 | Image/text/compositional search |
+| `tenant-service` | Reserved | later | Tenant billing, usage metering, quota enforcement |
+| `admin-service` | Reserved | later | Internal back-office tooling |
 
-This placeholder exists so the target repository structure (see `docs/CLEAN_ARCHITECTURE.md`) is visible
-and agreed upon from Milestone 1 onward, rather than being negotiated ad hoc each time a new milestone
-needs a new top-level folder.
+Each implemented service has its own `README.md`, `requirements-dev.txt` (installs the `shared/` packages
+editable), Alembic migrations run on container start, and a unit-test suite that uses in-memory fakes so
+`pytest` needs no running backends. Cross-service journeys are tested in `tests/e2e/`.

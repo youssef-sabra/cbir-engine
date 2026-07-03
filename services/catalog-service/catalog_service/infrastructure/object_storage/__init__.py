@@ -54,7 +54,9 @@ class S3ObjectStorage(ObjectStoragePort):
 
         self._client = make_client(endpoint_url)
         self._presign_client = (
-            self._client if presign_endpoint_url == endpoint_url else make_client(presign_endpoint_url)
+            self._client
+            if presign_endpoint_url == endpoint_url
+            else make_client(presign_endpoint_url)
         )
 
     def ensure_bucket(self) -> None:
