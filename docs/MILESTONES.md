@@ -70,13 +70,14 @@ cloud deployment infrastructure prepared but dormant.
 
 **Estimated Complexity:** M
 
-**Actual outcome:** See `MILESTONE_1_COMPLETION_REPORT.md`. All acceptance criteria are either fully
-satisfied or satisfied to the maximum extent possible within a network-restricted development sandbox, with
-the specific, evidence-based limitation being: real container image builds and a full multi-container
-Compose startup could not be executed in the environment this milestone was implemented in, because that
-environment's network egress does not permit pulling images from container registries (confirmed via a real
-attempted `podman build`, not assumed). This does not block Milestone 2 — it is a property of the
-implementation sandbox, not of the repository, which a developer's actual machine will not share.
+**Actual outcome:** See `MILESTONE_1_COMPLETION_REPORT.md`. All 10 acceptance criteria are fully
+satisfied. The two criteria originally blocked by the implementation sandbox's lack of container-registry
+access (real image build; full multi-container Compose startup) were closed out on 2026-07-03 by running
+the complete stack on the developer's own machine: the image built cleanly, all five containers reached
+healthy, and `/readyz` confirmed every backing service reachable over the Compose network. The same
+session also fixed a host-port/in-network-port conflation in `docker-compose.yml`, pinned the Qdrant and
+MinIO image versions for reproducibility, and removed stale duplicate planning documents from the
+repository root.
 
 ---
 

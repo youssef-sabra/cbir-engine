@@ -106,12 +106,16 @@ jobs:
             unhealthy=$(docker compose ps --format '{{.Name}} {{.Health}}' | grep -v "healthy" | grep -v "^$" || true)
             if [ -z "$unhealthy" ]; then
               echo "All services healthy."
-              break
+              docker compose ps
+              exit 0
             fi
             echo "Still waiting... ($i/18)"
             sleep 5
           done
+          echo "ERROR: services still unhealthy after 90s:" >&2
+          echo "$unhealthy" >&2
           docker compose ps
+          exit 1
 
       - name: Verify application starts correctly (liveness)
         run: |
