@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cbir-domain-kernel"
+version = "0.1.0"
+description = "Minimal cross-service domain kernel. Deliberately tiny — see docs/CLEAN_ARCHITECTURE.md Section 5."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9.0", "ruff>=0.7,<1.0"]
+
+[tool.setuptools.packages.find]
+include = ["cbir_domain_kernel*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

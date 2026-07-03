@@ -1,0 +1,8 @@
+# Relative paths resolve against the working directory; run pip from this
+# service's directory (the Makefile and CI both do).
+-r requirements.txt
+-e ../../shared/domain-kernel
+-e ../../shared/common-libs
+pytest==8.3.3
+httpx==0.27.2
+ruff==0.7.4
