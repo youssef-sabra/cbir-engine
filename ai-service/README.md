@@ -20,20 +20,44 @@ Images cross the wire base64-encoded in JSON. `/internal/embed` returns each vec
 
 `EMBEDDING_PROVIDER` selects the encoder behind the `EmbeddingProviderPort`:
 
+- **`siglip2`** — **the recommended production encoder** (`SigLIP2Embedder`, transformers). SigLIP 2 is a
+  jointly-trained vision-language model with a **shared image/text embedding space**, so the same vectors
+  serve image-to-image, text-to-image, and compositional search; it is multilingual and currently leads
+  zero-shot retrieval. Default checkpoint `google/siglip2-base-patch16-224`; set
+  `EMBEDDING_MODEL_CHECKPOINT=google/siglip2-so400m-patch14-384` for maximum quality. Embedding dimension
+  is read from the loaded model (base = 768).
+- **`openclip`** — a fully-open alternative (`OpenClipEmbedder`, open-clip-torch): ViT-B/32 … ViT-bigG/14,
+  incl. DFN/SigLIP weights (`EMBEDDING_MODEL_CHECKPOINT` + `EMBEDDING_MODEL_PRETRAINED`). Same shared-space
+  property.
+- **`dinov2`** — a best-in-class **image-only** structural encoder (`DinoV2Embedder`, transformers) for
+  fine-grained similarity. It has no text tower, so `embed_texts` is rejected — use `siglip2`/`openclip`
+  for text-to-image.
 - **`local`** (default) — `LocalDeterministicEmbedder`: a CPU-only, dependency-light (Pillow + numpy)
   encoder producing a 512-dim vector from a grayscale thumbnail (structure) + RGB thumbnail (color) +
-  luminance histogram (tone), L2-normalized. It gives **genuine image-to-image similarity** — visually
-  similar images land near each other — so the whole retrieval pipeline runs and is testable locally with
-  no GPU or model download. Text embeddings share the space dimensionally via a hashed bag-of-tokens but
-  are **not** semantically aligned with images (that needs a learned model).
-- **`siglip2` / `dinov2`** — adapters for the real encoders named in the architecture. They are honest
-  stubs: loading them needs torch + GPU + multi-GB weights, so they raise a clear error until provisioned.
-  Enabling one is a self-contained change to `infrastructure/embedding/model_adapters.py`.
+  luminance histogram (tone), L2-normalized. Genuine image-to-image *visual* similarity with no learned
+  semantics and no true cross-modal alignment. It exists as the **offline / CI fallback** — not the
+  quality path.
 
-> **Why a local default?** This is a local-first project with credential-free CI (Milestone 1). Real
-> encoders can't be pulled here, and the PRD explicitly requires the encoder to be swappable. Building
-> against the port with a deterministic default keeps the pipeline real, runnable, and green, and reduces
-> "use SigLIP 2" to a one-file swap.
+The real encoders need the ML dependencies (`requirements-ml.txt`: torch, transformers, open-clip) and
+download weights from the Hugging Face hub on first load (cache `HF_HOME` on a volume in production).
+
+### Running the real encoder
+
+```
+# locally, with the SigLIP 2 overlay (builds the ML image, downloads weights once):
+docker compose -f docker-compose.yml -f docker-compose.siglip.yml up --build
+
+# or in a Python env:
+pip install -r requirements.txt -r requirements-ml.txt
+EMBEDDING_PROVIDER=siglip2 uvicorn ai_service.main:app
+```
+
+> **Why is `local` still the default?** Real weights are multi-gigabyte and can't be pulled on the
+> credential-free CI runner (Milestone 1), and forcing every `docker compose up` to download them would
+> break the local-first "just works" property. So `local` is the default for CI/offline, and SigLIP 2 is
+> the documented, ready-to-run production encoder — one env var away, behind the same
+> `EmbeddingProviderPort`. Switching encoders changes the embedding dimension, so existing catalogs must be
+> re-indexed (the `model_version` stored with every vector makes stale vectors identifiable).
 
 ## Reranking (NFR17)
 

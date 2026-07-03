@@ -6,11 +6,21 @@
 # ---- Build stage -----------------------------------------------------------
 FROM python:3.12-slim AS builder
 
+# INSTALL_ML=true additionally installs the real-encoder dependencies (torch,
+# transformers, open-clip). Left false by default so the image stays small and
+# the `local` provider needs nothing extra:
+#   docker build -f ai-service/Dockerfile --build-arg INSTALL_ML=true .
+ARG INSTALL_ML=false
+
 WORKDIR /build
 
 COPY shared/common-libs ./shared/common-libs
-COPY ai-service/requirements.txt .
+COPY ai-service/requirements.txt ai-service/requirements-ml.txt ./
 RUN pip install --no-cache-dir --user -r requirements.txt ./shared/common-libs
+RUN if [ "$INSTALL_ML" = "true" ]; then \
+        pip install --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu && \
+        pip install --no-cache-dir --user -r requirements-ml.txt ; \
+    fi
 
 # ---- Runtime stage ----------------------------------------------------------
 FROM python:3.12-slim AS runtime

@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------
+# Overlay that runs ai-service with the REAL SigLIP 2 encoder instead of the
+# local deterministic default.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.siglip.yml up --build
+#
+# This builds the ai-service image with the ML dependencies (torch,
+# transformers, open-clip) and selects SigLIP 2. On first start the model
+# weights are downloaded from the Hugging Face hub into the hf_cache volume, so
+# subsequent restarts are fast. Expect a larger image and a slower first start;
+# on a GPU host set EMBEDDING_DEVICE=cuda.
+#
+# NOTE: switching the encoder changes the embedding dimension, so any items
+# indexed under a different encoder must be re-ingested (the model_version tag
+# stored with each vector makes stale vectors identifiable).
+# -----------------------------------------------------------------------------
+
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+      args:
+        INSTALL_ML: "true"
+    environment:
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-siglip2}
+      EMBEDDING_MODEL_CHECKPOINT: ${EMBEDDING_MODEL_CHECKPOINT:-google/siglip2-base-patch16-224}
+      EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-}
+      HF_HOME: /home/appuser/.cache/huggingface
+    volumes:
+      - hf_cache:/home/appuser/.cache/huggingface
+    # The model load + first-request weights download can take a while; give
+    # the healthcheck a long start period so the container isn't killed early.
+    healthcheck:
+      start_period: 600s
+
+volumes:
+  hf_cache:

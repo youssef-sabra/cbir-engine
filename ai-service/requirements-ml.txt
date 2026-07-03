@@ -1,0 +1,14 @@
+# Heavyweight ML dependencies for the REAL encoders (SigLIP 2 / OpenCLIP /
+# DINOv2). Kept out of the base requirements.txt so the default `local`
+# provider, CI, and offline development stay lightweight and download-free.
+#
+# Install only when running a real encoder (EMBEDDING_PROVIDER != local):
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# The Dockerfile installs these when built with --build-arg INSTALL_ML=true.
+# For CPU-only hosts, install torch from the CPU wheel index first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2,<3.0
+transformers>=4.45,<5.0
+open-clip-torch>=2.24,<3.0
+sentencepiece>=0.2,<0.3   # SigLIP 2 tokenizer

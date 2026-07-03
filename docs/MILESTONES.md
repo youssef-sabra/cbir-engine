@@ -474,7 +474,7 @@ repository root.
 | 2 | Authentication, Multi-Tenancy & Tenant Management | M | M1 | ✅ Completed |
 | 3 | Data Layer & Storage Foundation | M | M1, M2 | ✅ Completed |
 | 4 | Catalog Ingestion Pipeline | L | M2, M3 | ✅ Completed |
-| 5 | Embedding Service & Model Integration | L | M1, M4 | ✅ Completed (local encoder; SigLIP2/DINOv2 swappable) |
+| 5 | Embedding Service & Model Integration | L | M1, M4 | ✅ Completed (real SigLIP 2 encoder; OpenCLIP/DINOv2 alt; local = offline/CI fallback) |
 | 6 | Vector Database & ANN Search Integration | L | M3, M5 | ✅ Completed |
 | 7 | Core Search API (Image & Text Query) | L | M2, M5, M6 | ✅ Completed |
 | 8 | Caching & Performance Optimization | M | M4, M7 | ✅ Completed |

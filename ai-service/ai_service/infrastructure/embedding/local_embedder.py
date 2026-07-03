@@ -20,13 +20,13 @@ which makes ingestion reproducible and the query-embedding cache correct.
 from __future__ import annotations
 
 import hashlib
-import io
 
 import numpy as np
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 from ai_service.application.errors import InvalidImageError
 from ai_service.application.ports import EmbeddingProviderPort
+from ai_service.infrastructure.embedding.phash import InvalidImageBytes, average_hash, open_image
 
 LOCAL_EMBEDDING_DIM = 512
 MODEL_VERSION = "local-hash-v1"
@@ -51,24 +51,18 @@ class LocalDeterministicEmbedder(EmbeddingProviderPort):
         return [self._embed_text(t) for t in texts]
 
     def perceptual_hash(self, image: bytes) -> str:
-        """Average hash (aHash): 8x8 grayscale, threshold at the mean, packed
-        into a 16-char hex string. Perceptually similar images differ in only
-        a few bits (small Hamming distance)."""
-        img = self._open(image).convert("L").resize((8, 8), Image.BILINEAR)
-        pixels = np.asarray(img, dtype=np.float64)
-        bits = (pixels > pixels.mean()).flatten()
-        value = 0
-        for bit in bits:
-            value = (value << 1) | int(bit)
-        return f"{value:016x}"
+        try:
+            return average_hash(image)
+        except InvalidImageBytes as exc:
+            raise InvalidImageError(str(exc)) from exc
 
     # -- internals ------------------------------------------------------------
 
     def _open(self, image: bytes) -> Image.Image:
         try:
-            return Image.open(io.BytesIO(image))
-        except (UnidentifiedImageError, OSError) as exc:
-            raise InvalidImageError("could not decode image bytes") from exc
+            return open_image(image)
+        except InvalidImageBytes as exc:
+            raise InvalidImageError(str(exc)) from exc
 
     def _embed_image(self, image: bytes) -> list[float]:
         img = self._open(image).convert("RGB")

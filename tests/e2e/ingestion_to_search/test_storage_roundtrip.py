@@ -2,8 +2,14 @@
 
 register -> PUT bytes to the signed URL -> confirm -> download the same
 bytes -> delete (erasure) -> object and metadata both gone. Spans
-catalog-service and MinIO. (Named ingestion_to_search per the planned test
-layout; the embed/search half arrives with Milestones 5-7.)
+catalog-service and MinIO.
+
+This test targets the storage layer specifically, so it uploads an opaque
+payload (not a real image). Under Milestone 4 confirmation now also enqueues
+an ingestion job, so the item moves to `queued` (and the worker will later
+dead-letter this non-image payload) — neither of which affects the storage
+round trip verified here. The full image ingest -> index -> search loop is
+covered by scripts/smoke_pipeline.py against the live stack.
 """
 
 from __future__ import annotations
@@ -12,6 +18,9 @@ import httpx
 from tests.e2e.conftest import CATALOG_URL
 
 PAYLOAD = bytes(range(256)) * 8  # 2048 deterministic bytes
+
+# States from which the object is downloadable (post-confirmation lifecycle).
+_DOWNLOADABLE = {"queued", "processing", "indexed", "duplicate", "failed"}
 
 
 def test_signed_url_upload_confirm_download_then_erase(new_tenant_with_key):
@@ -32,13 +41,14 @@ def test_signed_url_upload_confirm_download_then_erase(new_tenant_with_key):
     put = httpx.request(upload["method"], upload["url"], content=PAYLOAD, headers=upload["headers"])
     assert put.status_code in (200, 204)
 
-    # Confirm -> uploaded, size persisted.
+    # Confirm -> queued (bytes verified in storage, ingestion enqueued), size persisted.
     confirmed = httpx.post(f"{CATALOG_URL}/v1/items/{item_id}/confirm", headers=headers).json()
-    assert confirmed["status"] == "uploaded"
+    assert confirmed["status"] == "queued"
     assert confirmed["size_bytes"] == len(PAYLOAD)
 
     # Download via signed URL returns the exact bytes.
     got = httpx.get(f"{CATALOG_URL}/v1/items/{item_id}", headers=headers).json()
+    assert got["item"]["status"] in _DOWNLOADABLE
     download_url = got["download_url"]
     assert download_url is not None
     downloaded = httpx.get(download_url)

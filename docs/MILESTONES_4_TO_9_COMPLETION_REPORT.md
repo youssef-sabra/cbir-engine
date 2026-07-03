@@ -58,13 +58,16 @@ and only on the compositional/precise path ✅; feedback persisted ✅.
 | `shared/domain-kernel` | 4 |
 | `shared/common-libs` (incl. vectordb) | 10 |
 | `services/auth-service` | 29 |
-| `services/catalog-service` | 25 |
+| `services/catalog-service` | 22 |
 | `ai-service` | 15 |
 | `workers/ingestion-worker` | 14 |
 | `services/query-service` | 18 |
-| **Total** | **115 unit tests, all passing; lint (ruff) clean across every package** |
+| **Total** | **112 unit tests, all passing; lint (ruff) clean across every package** |
 
-Plus the live pipeline smoke test and the existing M2/M3 cross-service e2e suite.
+Plus: the cross-service e2e suite (`tests/e2e`, 4 tests, run against the live stack) and the full
+live-stack pipeline smoke test (`scripts/smoke_pipeline.py`, 11 checks: provision → register → signed-URL
+upload → confirm → worker index → image search → hybrid filter → dedup → feedback). Caching (M8 cache-hit)
+and compositional rerank (M9) were additionally confirmed live against the running stack.
 
 ## 5. Notable Design Decisions
 
@@ -85,8 +88,10 @@ Plus the live pipeline smoke test and the existing M2/M3 cross-service e2e suite
 
 ## 6. Known Limitations (honest, and by design)
 
-- **Text-to-image semantic alignment** is only structural under the local embedder (see §2). Real
-  cross-modal quality needs the SigLIP 2 adapter.
+- **Text-to-image semantic alignment**: the real **SigLIP 2** encoder has since been implemented and
+  verified (see `docs/AI_PIPELINE_UPGRADE.md`), providing genuine cross-modal alignment. The local
+  embedder (still the CI/offline default) remains structural-only — enable `EMBEDDING_PROVIDER=siglip2`
+  for semantic text-to-image quality.
 - **Near-duplicate search is a per-tenant linear scan** of indexed pHashes. Correct and fine at local
   scale; a BK-tree/LSH index is the documented scale-up path.
 - **MLLM-based reranking and per-tenant fine-tuning** (the heavier halves of M9's extended scope) are

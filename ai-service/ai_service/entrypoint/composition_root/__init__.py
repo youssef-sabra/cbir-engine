@@ -22,7 +22,12 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings.service_name)
 
-    provider = build_embedding_provider(settings.embedding_provider)
+    provider = build_embedding_provider(
+        settings.embedding_provider,
+        checkpoint=settings.embedding_model_checkpoint,
+        pretrained=settings.embedding_model_pretrained,
+        device=settings.embedding_device,
+    )
     use_cases = UseCaseBundle(
         generate_embeddings=GenerateEmbeddings(provider),
         rerank_shortlist=RerankShortlist(CosineBlendReranker()),
