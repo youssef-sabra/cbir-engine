@@ -18,6 +18,9 @@ def item_to_row(item: CatalogItem) -> CatalogItemRow:
         external_id=item.external_id,
         size_bytes=item.size_bytes,
         phash=item.phash,
+        duplicate_of_id=item.duplicate_of_id,
+        failure_reason=item.failure_reason,
+        indexed_at=item.indexed_at,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -34,6 +37,9 @@ def row_to_item(row: CatalogItemRow) -> CatalogItem:
         external_id=row.external_id,
         size_bytes=row.size_bytes,
         phash=row.phash,
+        duplicate_of_id=row.duplicate_of_id,
+        failure_reason=row.failure_reason,
+        indexed_at=row.indexed_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

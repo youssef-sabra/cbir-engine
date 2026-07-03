@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from cbir_domain_kernel import TenantId
 
 from catalog_service.domain.entities import CatalogItem
+from catalog_service.domain.value_objects import ItemStatus
 
 
 class CatalogItemRepository(ABC):
@@ -28,7 +29,7 @@ class CatalogItemRepository(ABC):
 
     @abstractmethod
     def list_for_tenant(
-        self, tenant_id: TenantId, limit: int, offset: int
+        self, tenant_id: TenantId, limit: int, offset: int, status: ItemStatus | None = None
     ) -> list[CatalogItem]: ...
 
     @abstractmethod
@@ -38,3 +39,12 @@ class CatalogItemRepository(ABC):
     def delete(self, tenant_id: TenantId, item_id: uuid.UUID) -> bool:
         """Delete the item row and (via database cascade) all derived rows —
         embedding references and feedback. Returns False if no such item."""
+
+
+class FeedbackRepository(ABC):
+    @abstractmethod
+    def add(
+        self, feedback_id: uuid.UUID, item_id: uuid.UUID, query_ref: str, relevant: bool
+    ) -> None:
+        """Persist a relevance-feedback row (FR3.1). Caller has already
+        verified the item belongs to the tenant."""

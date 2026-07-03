@@ -23,6 +23,9 @@ class ItemOutput:
     metadata: dict
     external_id: str | None
     size_bytes: int | None
+    duplicate_of_id: str | None
+    failure_reason: str | None
+    indexed_at: datetime | None
     created_at: datetime | None
     updated_at: datetime | None
 
@@ -31,6 +34,17 @@ class ItemOutput:
 class RegisteredItemOutput:
     item: ItemOutput
     upload: PresignedUpload
+
+
+@dataclass(frozen=True)
+class BatchRegisterInput:
+    tenant_id: str
+    items: list[RegisterItemInput]
+
+
+@dataclass(frozen=True)
+class BatchRegisteredOutput:
+    items: list[RegisteredItemOutput]
 
 
 @dataclass(frozen=True)

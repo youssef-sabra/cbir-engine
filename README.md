@@ -12,9 +12,13 @@ This repository implements the plan described in `docs/`:
 - `docs/MILESTONES.md` — the 12-milestone build plan
 - `docs/CLEAN_ARCHITECTURE.md` — project structure rationale
 
-This repository currently contains the results of **Milestones 1–3**: the local-first infrastructure
-foundation, the authentication/multi-tenancy layer (`auth-service`), and the data & storage foundation
-(`catalog-service`). See `docs/MILESTONES.md` for the full plan and per-milestone status.
+This repository contains the results of **all 12 milestones**: the local-first infrastructure foundation;
+authentication/multi-tenancy (`auth-service`); the data & storage foundation (`catalog-service`); the
+asynchronous ingestion pipeline (`ingestion-worker`); the embedding + reranking service (`ai-service`, with
+a real SigLIP 2 encoder available); vector search over Qdrant; the core + compositional search API
+(`query-service`) with caching; observability (Prometheus + Grafana); a Python SDK and self-serve
+dashboard; and beta hardening (security review, retrieval-quality gate, GA checklist). See
+`docs/MILESTONES.md` for per-milestone status and the per-milestone completion reports under `docs/`.
 
 ---
 
@@ -35,13 +39,28 @@ This starts the backing services:
 - `qdrant` — vector database (primary ANN search engine; used from Milestone 6)
 - `minio` — S3-compatible object storage (stand-in for GCS/S3/Azure Blob)
 
-…and the application services (each runs its own DB migrations on start):
+…and the application services:
 - `auth-service` (`http://localhost:8001`) — tenants, API keys, access tokens, rate limiting
-- `catalog-service` (`http://localhost:8002`) — catalog item metadata + signed-URL image storage
+- `catalog-service` (`http://localhost:8002`) — catalog item metadata + signed-URL image storage + ingestion enqueue
+- `ai-service` (`http://localhost:8003`) — embedding generation + reranking (internal API)
+- `query-service` (`http://localhost:8004`) — image / text / compositional search
+- `ingestion-worker` — background queue consumer (no HTTP port): dedup → embed → index
+
+…plus operator surfaces:
+- **Dashboard** — http://localhost:3001 (self-serve: paste an API key, ingest, search playground)
+- **Grafana** — http://localhost:3000 (admin/admin; CBIR overview dashboard)
+- **Prometheus** — http://localhost:9090
+- **API docs** — each service's `/docs` (Swagger UI), e.g. http://localhost:8004/docs
 
 Once running, check readiness (verifies each service can reach its backends over the Compose network):
 - `GET http://localhost:8001/readyz` — auth-service (postgres + redis)
-- `GET http://localhost:8002/readyz` — catalog-service (postgres + object storage + auth-service)
+- `GET http://localhost:8002/readyz` — catalog-service (postgres + object storage + queue + auth-service)
+- `GET http://localhost:8003/readyz` — ai-service (encoder loaded)
+- `GET http://localhost:8004/readyz` — query-service (ai-service + vector db + cache + auth-service)
+
+**Use the Python SDK** (`sdks/python-sdk`): `pip install -e sdks/python-sdk`, then
+`from cbir import CBIRClient`. For a real semantic encoder run
+`docker compose -f docker-compose.yml -f docker-compose.siglip.yml up --build`.
 
 **Provision a tenant and issue an API key**, then use it:
 

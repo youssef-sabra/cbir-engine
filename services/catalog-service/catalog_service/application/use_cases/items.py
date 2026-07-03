@@ -15,6 +15,8 @@ import uuid
 from cbir_domain_kernel import TenantId
 
 from catalog_service.application.dto import (
+    BatchRegisteredOutput,
+    BatchRegisterInput,
     ItemOutput,
     ItemWithDownloadOutput,
     RegisteredItemOutput,
@@ -26,7 +28,12 @@ from catalog_service.application.errors import (
     UnsupportedContentTypeError,
     UploadNotConfirmableError,
 )
-from catalog_service.application.ports import Clock, ObjectStoragePort
+from catalog_service.application.ports import (
+    Clock,
+    IngestionJob,
+    IngestionQueuePort,
+    ObjectStoragePort,
+)
 from catalog_service.domain.entities import CatalogItem
 from catalog_service.domain.repository_interfaces import CatalogItemRepository
 from catalog_service.domain.value_objects import ItemStatus
@@ -41,6 +48,9 @@ def _present(item: CatalogItem) -> ItemOutput:
         metadata=item.metadata,
         external_id=item.external_id,
         size_bytes=item.size_bytes,
+        duplicate_of_id=str(item.duplicate_of_id) if item.duplicate_of_id else None,
+        failure_reason=item.failure_reason,
+        indexed_at=item.indexed_at,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -68,18 +78,28 @@ class RegisterCatalogItem:
         self._upload_url_ttl_seconds = upload_url_ttl_seconds
 
     def execute(self, data: RegisterItemInput) -> RegisteredItemOutput:
+        return self.register_one(data, seen_external_ids=set())
+
+    def register_one(
+        self, data: RegisterItemInput, seen_external_ids: set[str]
+    ) -> RegisteredItemOutput:
+        """Register a single item. `seen_external_ids` lets a batch catch
+        duplicate external_ids WITHIN the same request, not just against
+        already-persisted rows."""
         if data.content_type not in self._allowed_content_types:
             raise UnsupportedContentTypeError(
                 f"content type '{data.content_type}' not supported; "
                 f"allowed: {sorted(self._allowed_content_types)}"
             )
         tenant_id = TenantId.parse(data.tenant_id)
-        if data.external_id is not None and (
-            self._items.get_by_external_id(tenant_id, data.external_id) is not None
-        ):
-            raise DuplicateExternalIdError(
-                f"an item with external_id '{data.external_id}' already exists for this tenant"
-            )
+        if data.external_id is not None:
+            if data.external_id in seen_external_ids or (
+                self._items.get_by_external_id(tenant_id, data.external_id) is not None
+            ):
+                raise DuplicateExternalIdError(
+                    f"an item with external_id '{data.external_id}' already exists for this tenant"
+                )
+            seen_external_ids.add(data.external_id)
         now = self._clock.now()
         item_id = uuid.uuid4()
         item = CatalogItem(
@@ -100,12 +120,39 @@ class RegisterCatalogItem:
         return RegisteredItemOutput(item=_present(item), upload=upload)
 
 
+class BatchRegisterCatalogItems:
+    """Register many items in one call (batch upload / manifest import,
+    FR1.1). Each returned item carries its own signed upload URL; the client
+    uploads bytes and confirms each, which enqueues its ingestion job. Job
+    status is then observable per item via GET /v1/items (the Milestone 4
+    'all reflected in job-status tracking' criterion)."""
+
+    def __init__(self, register: RegisterCatalogItem) -> None:
+        self._register = register
+
+    def execute(self, data: BatchRegisterInput) -> BatchRegisteredOutput:
+        seen: set[str] = set()
+        results = [self._register.register_one(item, seen) for item in data.items]
+        return BatchRegisteredOutput(items=results)
+
+
 class ConfirmCatalogItemUpload:
+    """Verify the uploaded object exists, then hand the item to the async
+    ingestion pipeline. The queue enqueue happens after the DB update so a
+    committed QUEUED row always precedes (or coincides with) the job; a
+    worker that races ahead and finds the row not yet QUEUED simply requeues.
+    """
+
     def __init__(
-        self, items: CatalogItemRepository, storage: ObjectStoragePort, clock: Clock
+        self,
+        items: CatalogItemRepository,
+        storage: ObjectStoragePort,
+        queue: IngestionQueuePort,
+        clock: Clock,
     ) -> None:
         self._items = items
         self._storage = storage
+        self._queue = queue
         self._clock = clock
 
     def execute(self, tenant_id: str, item_id: str) -> ItemOutput:
@@ -115,8 +162,15 @@ class ConfirmCatalogItemUpload:
             raise UploadNotConfirmableError(
                 "no object found in storage for this item — upload via the signed URL first"
             )
-        item.mark_uploaded(size_bytes=stat.size_bytes, now=self._clock.now())
+        item.mark_uploaded_and_queued(size_bytes=stat.size_bytes, now=self._clock.now())
         self._items.update(item)
+        self._queue.enqueue(
+            IngestionJob(
+                tenant_id=str(item.tenant_id),
+                item_id=str(item.id),
+                object_key=item.object_key,
+            )
+        )
         return _present(item)
 
 
@@ -145,9 +199,15 @@ class ListCatalogItems:
     def __init__(self, items: CatalogItemRepository) -> None:
         self._items = items
 
-    def execute(self, tenant_id: str, limit: int = 50, offset: int = 0) -> list[ItemOutput]:
+    def execute(
+        self, tenant_id: str, limit: int = 50, offset: int = 0, status: str | None = None
+    ) -> list[ItemOutput]:
         parsed = TenantId.parse(tenant_id)
-        return [_present(i) for i in self._items.list_for_tenant(parsed, limit, offset)]
+        status_vo = ItemStatus(status) if status is not None else None
+        return [
+            _present(i)
+            for i in self._items.list_for_tenant(parsed, limit, offset, status=status_vo)
+        ]
 
 
 class DeleteCatalogItem:

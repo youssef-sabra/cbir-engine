@@ -1,0 +1,20 @@
+{
+  "_comment": "Fixture evaluation set for the retrieval-quality gate. Each query lists the system's ranked item ids (best-first) and the ground-truth relevant ids. Replace with a real per-vertical benchmark before GA; this fixture exercises the gate math deterministically in CI.",
+  "queries": [
+    {
+      "query": "red running shoes",
+      "ranked_ids": ["shoe-red-1", "shoe-red-2", "bag-1", "shoe-blue-1"],
+      "relevant_ids": ["shoe-red-1", "shoe-red-2"]
+    },
+    {
+      "query": "leather handbag",
+      "ranked_ids": ["bag-1", "bag-2", "shoe-red-1"],
+      "relevant_ids": ["bag-1", "bag-2"]
+    },
+    {
+      "query": "blue sneaker",
+      "ranked_ids": ["shoe-blue-1", "shoe-red-1", "bag-1"],
+      "relevant_ids": ["shoe-blue-1"]
+    }
+  ]
+}

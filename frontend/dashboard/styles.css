@@ -1,0 +1,96 @@
+:root {
+  --bg: #0f1420;
+  --card: #1a2233;
+  --fg: #e6ebf5;
+  --muted: #8b97ad;
+  --accent: #4f8cff;
+  --accent-2: #2a3550;
+  --ok: #34d399;
+  --err: #f87171;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--accent-2);
+}
+
+header h1 { margin: 0; font-size: 1.4rem; }
+.tagline { color: var(--muted); font-size: 0.9rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--accent-2);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.25rem;
+  max-width: 900px;
+}
+
+.card h2 { margin-top: 0; font-size: 1.05rem; }
+.hint { color: var(--muted); font-size: 0.85rem; margin-top: -0.25rem; }
+
+label { display: block; margin: 0.5rem 0; color: var(--muted); font-size: 0.85rem; }
+label.inline { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  margin-top: 0.2rem;
+  background: #0d1220;
+  color: var(--fg);
+  border: 1px solid var(--accent-2);
+  border-radius: 8px;
+  font: inherit;
+}
+input[type="number"] { width: 5rem; }
+input[type="file"] { padding: 0.35rem; }
+
+.row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 0.5rem 0; }
+.row input { flex: 1; margin-top: 0; }
+
+button {
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.secondary { background: var(--accent-2); }
+button:hover { filter: brightness(1.08); }
+
+.status { margin-left: 0.75rem; font-size: 0.85rem; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--err); }
+
+.list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.8rem;
+  background: #0d1220;
+  border: 1px solid var(--accent-2);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.item .id { font-family: ui-monospace, monospace; color: var(--muted); }
+.badge { font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--accent-2); }
+.badge.indexed { background: rgba(52, 211, 153, 0.2); color: var(--ok); }
+.badge.failed { background: rgba(248, 113, 113, 0.2); color: var(--err); }
+.score { color: var(--accent); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,173 @@
+// CBIR Engine dashboard — build-free vanilla JS talking to the public REST API.
+// The dashboard is "just another API consumer" (dogfoods the same endpoints as
+// the SDK and external customers), per the architecture's frontend design.
+
+const state = {
+  apiKey: localStorage.getItem("cbir_apiKey") || "",
+  catalogUrl: localStorage.getItem("cbir_catalogUrl") || "http://localhost:8002",
+  queryUrl: localStorage.getItem("cbir_queryUrl") || "http://localhost:8004",
+};
+
+const $ = (id) => document.getElementById(id);
+
+function initConn() {
+  $("apiKey").value = state.apiKey;
+  $("catalogUrl").value = state.catalogUrl;
+  $("queryUrl").value = state.queryUrl;
+}
+
+function headers() {
+  return { "X-API-Key": state.apiKey };
+}
+
+function setStatus(el, msg, ok) {
+  el.textContent = msg;
+  el.className = "status " + (ok ? "ok" : "err");
+}
+
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail || detail;
+    } catch (_) {}
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// --- connect -----------------------------------------------------------------
+
+$("saveConn").onclick = async () => {
+  state.apiKey = $("apiKey").value.trim();
+  state.catalogUrl = $("catalogUrl").value.trim().replace(/\/$/, "");
+  state.queryUrl = $("queryUrl").value.trim().replace(/\/$/, "");
+  localStorage.setItem("cbir_apiKey", state.apiKey);
+  localStorage.setItem("cbir_catalogUrl", state.catalogUrl);
+  localStorage.setItem("cbir_queryUrl", state.queryUrl);
+  try {
+    await api(`${state.catalogUrl}/v1/items?limit=1`, { headers: headers() });
+    setStatus($("connStatus"), "connected ✓", true);
+    refreshCatalog();
+  } catch (e) {
+    setStatus($("connStatus"), e.message, false);
+  }
+};
+
+// --- catalog -----------------------------------------------------------------
+
+async function refreshCatalog() {
+  try {
+    const items = await api(`${state.catalogUrl}/v1/items?limit=50`, { headers: headers() });
+    $("catalogList").innerHTML = items
+      .map(
+        (it) =>
+          `<div class="item"><span class="id">${it.id.slice(0, 8)}…</span>` +
+          `<span>${JSON.stringify(it.metadata)}</span>` +
+          `<span class="badge ${it.status}">${it.status}</span></div>`
+      )
+      .join("");
+  } catch (e) {
+    $("catalogList").innerHTML = `<div class="item">${e.message}</div>`;
+  }
+}
+$("refreshBtn").onclick = refreshCatalog;
+
+$("uploadBtn").onclick = async () => {
+  const file = $("uploadFile").files[0];
+  if (!file) return;
+  let metadata = {};
+  try {
+    metadata = $("uploadMeta").value ? JSON.parse($("uploadMeta").value) : {};
+  } catch (_) {
+    return alert("metadata must be valid JSON");
+  }
+  try {
+    // register -> signed PUT -> confirm
+    const reg = await api(`${state.catalogUrl}/v1/items`, {
+      method: "POST",
+      headers: { ...headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({ content_type: file.type || "image/jpeg", metadata }),
+    });
+    const up = reg.upload;
+    const put = await fetch(up.url, { method: up.method, headers: up.headers, body: file });
+    if (!put.ok) throw new Error("object upload failed");
+    await api(`${state.catalogUrl}/v1/items/${reg.item.id}/confirm`, {
+      method: "POST",
+      headers: headers(),
+    });
+    refreshCatalog();
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+// --- search ------------------------------------------------------------------
+
+function renderResults(payload) {
+  const cached = payload.cached ? " (cached)" : "";
+  const reranked = payload.reranked ? " · reranked" : "";
+  $("results").innerHTML =
+    `<div class="hint">${payload.count} results${cached}${reranked}</div>` +
+    payload.results
+      .map(
+        (r) =>
+          `<div class="item"><span class="id">${r.item_id.slice(0, 8)}…</span>` +
+          `<span>${JSON.stringify(r.metadata)}</span>` +
+          `<span class="score">${r.score.toFixed(4)}</span></div>`
+      )
+      .join("");
+}
+
+function parseFilters() {
+  try {
+    return $("filters").value ? JSON.parse($("filters").value) : {};
+  } catch (_) {
+    alert("filters must be valid JSON");
+    throw new Error("bad filters");
+  }
+}
+
+$("textSearchBtn").onclick = async () => {
+  try {
+    const payload = await api(`${state.queryUrl}/v1/search/text`, {
+      method: "POST",
+      headers: { ...headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: $("textQuery").value,
+        top_k: Number($("topK").value),
+        filters: parseFilters(),
+      }),
+    });
+    renderResults(payload);
+  } catch (e) {
+    if (e.message !== "bad filters") alert(e.message);
+  }
+};
+
+$("imageSearchBtn").onclick = async () => {
+  const file = $("imageQuery").files[0];
+  if (!file) return;
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("top_k", $("topK").value);
+    const filters = parseFilters();
+    if (Object.keys(filters).length) form.append("filters", JSON.stringify(filters));
+    const modifier = $("modifier").value.trim();
+    const path = modifier ? "/v1/search/composed" : "/v1/search/image";
+    if (modifier) form.append("modifier", modifier);
+    const payload = await api(`${state.queryUrl}${path}`, {
+      method: "POST",
+      headers: headers(),
+      body: form,
+    });
+    renderResults(payload);
+  } catch (e) {
+    if (e.message !== "bad filters") alert(e.message);
+  }
+};
+
+initConn();
+if (state.apiKey) refreshCatalog();

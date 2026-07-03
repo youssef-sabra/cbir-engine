@@ -1,9 +1,9 @@
 .PHONY: help up down logs ps build lint format test compose-validate ci-local clean \
-        migrate provision db-backup db-restore
+        migrate provision db-backup db-restore smoke
 
 # Packages carrying their own lint/test suites. Kept as one list so adding a
 # service later is a one-line change.
-PY_PACKAGES = shared/domain-kernel shared/common-libs services/auth-service services/catalog-service
+PY_PACKAGES = shared/domain-kernel shared/common-libs services/auth-service services/catalog-service ai-service workers/ingestion-worker services/query-service sdks/python-sdk infra/ci/quality-gates
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "%-18s %s\n", $$1, $$2}'
@@ -53,6 +53,12 @@ migrate: ## Apply all service database migrations against the running stack
 provision: ## Create a tenant + issue an API key (usage: make provision NAME=acme)
 	python scripts/provision_tenant.py --name "$(NAME)"
 
+smoke: ## Run the full ingest->index->search pipeline smoke test against the running stack
+	python scripts/smoke_pipeline.py
+
+quality-gate: ## Run the retrieval-quality regression gate (Recall@K / nDCG / MRR)
+	python infra/ci/quality-gates/retrieval_quality.py --eval infra/ci/quality-gates/eval_set.json --k 10
+
 db-backup: ## Dump the PostgreSQL database to backups/ (see docs/RUNBOOK_BACKUP_RESTORE.md)
 	./scripts/db_backup.sh
 
@@ -66,8 +72,10 @@ ci-local: ## Run the same checks CI runs, locally
 	$(MAKE) compose-validate
 	docker compose up -d
 	@echo "Waiting for services to become healthy..."
-	@sleep 10
+	@sleep 15
 	docker compose ps
 	curl -sf http://localhost:8001/health || (docker compose logs && exit 1)
 	curl -sf http://localhost:8002/health || (docker compose logs && exit 1)
+	curl -sf http://localhost:8003/health || (docker compose logs && exit 1)
+	curl -sf http://localhost:8004/health || (docker compose logs && exit 1)
 	docker compose down

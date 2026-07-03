@@ -45,6 +45,27 @@ class ObjectStoragePort(ABC):
         """Idempotent: deleting a missing object is not an error."""
 
 
+@dataclass(frozen=True)
+class IngestionJob:
+    tenant_id: str
+    item_id: str
+    object_key: str
+
+
+class IngestionQueuePort(ABC):
+    """Hands a confirmed item to the asynchronous ingestion pipeline. The
+    concrete implementation is a Redis queue producer; the consumer is the
+    ingestion-worker. Decouples upload-response latency from embedding work
+    (FR1.4) — the upload/confirm call returns immediately with the item in
+    QUEUED state."""
+
+    @abstractmethod
+    def enqueue(self, job: IngestionJob) -> None: ...
+
+    @abstractmethod
+    def reachable(self) -> bool: ...
+
+
 class Clock(ABC):
     @abstractmethod
     def now(self) -> datetime: ...

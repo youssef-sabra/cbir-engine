@@ -7,10 +7,13 @@ factory backed by in-memory fakes — the wiring below is what runs for real.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager, contextmanager
 
 import redis
+from cbir_common.http import add_security_headers
+from cbir_common.observability import instrument
 from cbir_common.structured_logging import configure_logging
 from fastapi import FastAPI, Response, status
 from sqlalchemy import text
@@ -44,7 +47,26 @@ from auth_service.interface_adapters.gateways import (
     SqlAlchemyTenantRepository,
 )
 
+logger = logging.getLogger(__name__)
+
 UnitOfWorkFactory = Callable[[], AbstractContextManager[UseCaseBundle]]
+
+# The dev defaults shipped in Settings — never acceptable in production.
+_DEV_JWT_SECRET = "local-dev-jwt-secret-not-for-production"
+_DEV_ADMIN_TOKEN = "local-dev-admin-token"
+
+
+def _warn_on_dev_secrets(settings) -> None:
+    if settings.auth_jwt_secret == _DEV_JWT_SECRET:
+        logger.warning(
+            "AUTH_JWT_SECRET is the built-in development default; set a strong secret "
+            "from a secret manager before production."
+        )
+    if settings.auth_admin_token == _DEV_ADMIN_TOKEN:
+        logger.warning(
+            "AUTH_ADMIN_TOKEN is the built-in development default; set a strong token "
+            "before production."
+        )
 
 
 def build_sql_unit_of_work_factory(settings: Settings) -> UnitOfWorkFactory:
@@ -99,6 +121,7 @@ def build_app(
 ) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings.service_name)
+    _warn_on_dev_secrets(settings)
     uow = unit_of_work_factory or build_sql_unit_of_work_factory(settings)
 
     app = FastAPI(
@@ -106,6 +129,8 @@ def build_app(
         version=settings.service_version,
         description="Tenant identity, API key lifecycle, token issuance, rate limiting.",
     )
+    instrument(app, settings.service_name)
+    add_security_headers(app)
     register_error_handlers(app)
     app.include_router(build_admin_router(uow, build_admin_guard(settings.auth_admin_token)))
     app.include_router(build_auth_router(uow))
