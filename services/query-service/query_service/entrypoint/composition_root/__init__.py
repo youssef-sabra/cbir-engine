@@ -12,6 +12,8 @@ from contextlib import AbstractContextManager, contextmanager
 from typing import Any
 
 from cbir_common.auth import AuthServiceClient, build_scope_dependency
+from cbir_common.http import add_security_headers, configure_cors
+from cbir_common.observability import instrument
 from cbir_common.structured_logging import configure_logging
 from fastapi import FastAPI, Response, status
 
@@ -76,6 +78,9 @@ def build_app(
         version=settings.service_version,
         description="Image, text, and compositional search over indexed catalogs.",
     )
+    instrument(app, settings.service_name)
+    add_security_headers(app)
+    configure_cors(app, settings.cors_allow_origins)
     register_error_handlers(app)
     app.include_router(build_search_router(unit_of_work_factory, require_query))
 

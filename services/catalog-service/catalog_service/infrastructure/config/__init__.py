@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Cap on items registrable in one batch call (protects the API).
     max_batch_items: int = 1000
 
+    # CORS origins for the browser dashboard (comma-separated; "*" for dev).
+    cors_allow_origins: str = "*"
+
     # Object storage via the S3 API contract. s3_endpoint_url is where THIS
     # SERVICE talks to storage; s3_presign_endpoint_url is the host embedded
     # in signed URLs handed to CLIENTS. They differ locally because clients

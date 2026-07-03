@@ -292,6 +292,65 @@ services:
     networks:
       - cbir-network
 
+  # ---------------------------------------------------------------------------
+  # dashboard (Milestone 11). Build-free static SPA (nginx) — the self-serve
+  # surface: paste an API key, ingest images, and use the search playground.
+  # Just another API consumer (CORS-enabled on catalog + query services).
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ./frontend/dashboard
+      dockerfile: Dockerfile
+    container_name: cbir-dashboard
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_HOST_PORT:-3001}:80"
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # Prometheus (Milestone 10). Scrapes /metrics from every service + the worker
+  # and evaluates the NFR-tied alert rules. Config under infra/observability.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: cbir-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    networks:
+      - cbir-network
+
+  # ---------------------------------------------------------------------------
+  # Grafana (Milestone 10). Auto-provisioned Prometheus datasource + the CBIR
+  # overview dashboard. Default login admin / admin (local dev only).
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: cbir-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - cbir-network
+
 networks:
   cbir-network:
     driver: bridge
@@ -301,3 +360,5 @@ volumes:
   redis_data:
   qdrant_data:
   minio_data:
+  prometheus_data:
+  grafana_data:

@@ -15,6 +15,7 @@ import redis
 from cbir_common.structured_logging import configure_logging
 from cbir_common.vectordb import QdrantVectorStore
 
+from ingestion_worker import metrics
 from ingestion_worker.adapters import (
     AiServiceEmbedderClient,
     RedisIndexVersionBumper,
@@ -75,6 +76,7 @@ def run_forever(settings: Settings | None = None) -> None:
     configure_logging(settings.service_name)
     redis_client = redis.Redis.from_url(settings.redis_url)
     runner = build_runner(settings, redis_client)
+    metrics.start_metrics_server(settings.metrics_port)
 
     stopping = {"flag": False}
 
@@ -87,6 +89,7 @@ def run_forever(settings: Settings | None = None) -> None:
 
     logger.info("ingestion-worker started; consuming from %s", settings.queue_key)
     while not stopping["flag"]:
+        _update_queue_depth(redis_client, settings)
         item = redis_client.brpop([settings.queue_key], timeout=settings.poll_timeout_seconds)
         if item is None:
             continue  # idle timeout — loop back and re-check the stop flag
@@ -95,6 +98,15 @@ def run_forever(settings: Settings | None = None) -> None:
             runner.handle(raw_payload.decode() if isinstance(raw_payload, bytes) else raw_payload)
         except Exception:
             logger.exception("unexpected error handling job; dropping to avoid a hot loop")
+
+
+def _update_queue_depth(redis_client, settings) -> None:
+    """Refresh the queue-depth gauges so a growing backlog / DLQ is alertable."""
+    try:
+        metrics.QUEUE_DEPTH.labels("main").set(redis_client.llen(settings.queue_key))
+        metrics.QUEUE_DEPTH.labels("dlq").set(redis_client.llen(settings.dlq_key))
+    except Exception:
+        logger.debug("could not read queue depth", exc_info=True)
 
 
 if __name__ == "__main__":

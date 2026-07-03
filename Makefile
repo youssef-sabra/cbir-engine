@@ -3,7 +3,7 @@
 
 # Packages carrying their own lint/test suites. Kept as one list so adding a
 # service later is a one-line change.
-PY_PACKAGES = shared/domain-kernel shared/common-libs services/auth-service services/catalog-service ai-service workers/ingestion-worker services/query-service
+PY_PACKAGES = shared/domain-kernel shared/common-libs services/auth-service services/catalog-service ai-service workers/ingestion-worker services/query-service sdks/python-sdk infra/ci/quality-gates
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "%-18s %s\n", $$1, $$2}'
@@ -55,6 +55,9 @@ provision: ## Create a tenant + issue an API key (usage: make provision NAME=acm
 
 smoke: ## Run the full ingest->index->search pipeline smoke test against the running stack
 	python scripts/smoke_pipeline.py
+
+quality-gate: ## Run the retrieval-quality regression gate (Recall@K / nDCG / MRR)
+	python infra/ci/quality-gates/retrieval_quality.py --eval infra/ci/quality-gates/eval_set.json --k 10
 
 db-backup: ## Dump the PostgreSQL database to backups/ (see docs/RUNBOOK_BACKUP_RESTORE.md)
 	./scripts/db_backup.sh

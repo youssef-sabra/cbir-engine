@@ -1,0 +1,45 @@
+# Alert rules tied to the PRD's NFR thresholds (Milestone 10).
+groups:
+  - name: cbir-slos
+    rules:
+      - alert: QueryLatencyP95High
+        # NFR1: P95 image search < 300ms. Fires if the 5-min P95 exceeds it.
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="query-service"}[5m]))) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "query-service P95 latency above the 300ms NFR1 target"
+
+      - alert: HighErrorRate
+        expr: sum by (service) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (service) (rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} 5xx error rate above 5%"
+
+      - alert: IngestionDeadLetterGrowing
+        # DLQ depth should be ~0; a sustained non-zero backlog needs a human.
+        expr: ingestion_queue_depth{queue="dlq"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ingestion dead-letter queue is non-empty"
+
+      - alert: IngestionBacklogHigh
+        expr: ingestion_queue_depth{queue="main"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ingestion backlog above 1000 jobs"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} target is down"

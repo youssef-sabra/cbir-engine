@@ -17,6 +17,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 
+from ingestion_worker import metrics
 from ingestion_worker.config import Settings
 from ingestion_worker.ports import PermanentError, TransientError
 from ingestion_worker.processor import IngestionProcessor, ProcessResult
@@ -50,8 +51,16 @@ class IngestionRunner:
         self._sleep = sleep
 
     def handle(self, raw_payload: str) -> JobDisposition:
-        """Process one raw queue payload and decide its disposition. Pure
-        enough to unit-test every branch (success/duplicate/retry/DLQ)."""
+        """Process one raw queue payload and decide its disposition, recording
+        the outcome and duration as metrics (Milestone 10)."""
+        with metrics.JOB_DURATION.time():
+            disposition = self._handle(raw_payload)
+        metrics.record(disposition.action)
+        return disposition
+
+    def _handle(self, raw_payload: str) -> JobDisposition:
+        """The disposition decision. Pure enough to unit-test every branch
+        (success/duplicate/retry/DLQ)."""
         try:
             job = json.loads(raw_payload)
             item_id = job["item_id"]

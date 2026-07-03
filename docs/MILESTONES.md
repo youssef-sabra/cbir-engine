@@ -479,8 +479,8 @@ repository root.
 | 7 | Core Search API (Image & Text Query) | L | M2, M5, M6 | ✅ Completed |
 | 8 | Caching & Performance Optimization | M | M4, M7 | ✅ Completed |
 | 9 | Reranking & Compositional Query (Differentiation) | XL | M5, M7, M8 | ✅ Core completed (MLLM rerank + fine-tuning = seams) |
-| 10 | Monitoring, Logging & Observability | M | M1–M9 | ⏳ Not started |
-| 11 | Frontend Dashboard, SDKs & Developer Experience | L | M2, M4, M7, M10 | ⏳ Not started |
-| 12 | Beta Hardening, Security Review & GA Launch | XL | M1–M11 | ⏳ Not started |
+| 10 | Monitoring, Logging & Observability | M | M1–M9 | ✅ Completed (Prometheus metrics + Grafana + alerts + request-id tracing) |
+| 11 | Frontend Dashboard, SDKs & Developer Experience | L | M2, M4, M7, M10 | ✅ Completed (Python SDK + build-free dashboard + Swagger docs) |
+| 12 | Beta Hardening, Security Review & GA Launch | XL | M1–M11 | ✅ Completed (security review + hardening, retrieval-quality gate, GA checklist) |
 
 **Critical path:** M1 → M2 → M3 → M4 → M5 → M6 → M7 → M9 → M12, with M8, M10, and M11 running partially in parallel once their respective dependencies (M7, M4/M7/M9, M2/M4/M7) are satisfied — a small team can compress the overall timeline by starting M10's instrumentation work incrementally alongside M4–M9 rather than waiting for all of them to complete.

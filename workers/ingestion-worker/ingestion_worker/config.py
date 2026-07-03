@@ -37,3 +37,6 @@ class Settings(BaseSettings):
 
     # BRPOP block timeout; also how often an idle worker re-checks for shutdown.
     poll_timeout_seconds: int = 5
+
+    # Port the worker exposes Prometheus metrics on (Milestone 10).
+    metrics_port: int = 9100

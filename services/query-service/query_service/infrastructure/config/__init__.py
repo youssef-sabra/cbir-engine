@@ -19,3 +19,6 @@ class Settings(BaseSettings):
     # Result/embedding caching (Milestone 8). Set enable_cache=false to run the
     # uncached path (also the automatic fallback if Redis is unreachable).
     enable_cache: bool = True
+
+    # CORS origins for the browser dashboard (comma-separated; "*" for dev).
+    cors_allow_origins: str = "*"
