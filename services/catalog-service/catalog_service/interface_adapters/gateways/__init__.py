@@ -40,9 +40,7 @@ class SqlAlchemyCatalogItemRepository(CatalogItemRepository):
         )
         return mappers.row_to_item(row) if row else None
 
-    def list_for_tenant(
-        self, tenant_id: TenantId, limit: int, offset: int
-    ) -> list[CatalogItem]:
+    def list_for_tenant(self, tenant_id: TenantId, limit: int, offset: int) -> list[CatalogItem]:
         rows = self._session.scalars(
             select(CatalogItemRow)
             .where(CatalogItemRow.tenant_id == tenant_id.value)

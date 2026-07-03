@@ -167,9 +167,7 @@ class DeleteCatalogItem:
         self._items.delete(TenantId.parse(tenant_id), item.id)
 
 
-def _get_item_or_raise(
-    items: CatalogItemRepository, tenant_id: str, item_id: str
-) -> CatalogItem:
+def _get_item_or_raise(items: CatalogItemRepository, tenant_id: str, item_id: str) -> CatalogItem:
     not_found = ItemNotFoundError(f"no catalog item with id '{item_id}'")
     try:
         parsed_item_id = uuid.UUID(item_id)

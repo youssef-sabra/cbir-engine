@@ -1,0 +1,16 @@
+[project]
+name = "cbir-e2e-tests"
+version = "0.1.0"
+description = "Cross-service end-to-end tests, run against a live Compose stack."
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+# Run from the repository root so `tests.e2e...` imports resolve.
+testpaths = ["tests/e2e"]

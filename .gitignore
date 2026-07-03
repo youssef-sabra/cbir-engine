@@ -34,6 +34,9 @@ crash.log
 # Docker / local data volumes
 *.local
 
+# Database backup dumps (see docs/RUNBOOK_BACKUP_RESTORE.md)
+backups/
+
 # IDE
 .vscode/
 .idea/

@@ -59,6 +59,4 @@ def present_registered(dto: RegisteredItemOutput) -> RegisteredItemResponse:
 
 
 def present_item_with_download(dto: ItemWithDownloadOutput) -> ItemWithDownloadResponse:
-    return ItemWithDownloadResponse(
-        item=present_item(dto.item), download_url=dto.download_url
-    )
+    return ItemWithDownloadResponse(item=present_item(dto.item), download_url=dto.download_url)

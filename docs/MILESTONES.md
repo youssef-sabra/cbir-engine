@@ -83,6 +83,12 @@ repository root.
 
 ## Milestone 2 — Authentication, Multi-Tenancy & Tenant Management
 
+> **Status: ✅ Completed.** See `MILESTONE_2_COMPLETION_REPORT.md`. Delivered as `services/auth-service`
+> plus the `shared/domain-kernel` and `shared/common-libs` packages. All acceptance criteria verified by
+> unit tests and against the live Docker Compose stack. "Deployed to staging" is interpreted as the
+> local-first equivalent (running in the Compose stack), consistent with the Milestone 1 re-scope — no
+> cloud staging environment exists yet by design.
+
 **Objective:** Build the tenant, API key, and access-control foundation that every other service depends on for isolation and security.
 
 **Features:**
@@ -115,6 +121,13 @@ repository root.
 ---
 
 ## Milestone 3 — Data Layer & Storage Foundation
+
+> **Status: ✅ Completed.** See `MILESTONE_3_COMPLETION_REPORT.md`. Delivered as `services/catalog-service`
+> (item metadata, signed-URL object storage, right-to-erasure deletion) plus the full data-layer schema
+> (`catalog_items`, `embedding_refs`, `feedback`, `usage_records`, `adapter_versions`), the pgvector
+> extension, and the backup/recovery baseline (`docs/RUNBOOK_BACKUP_RESTORE.md`, with an executed recovery
+> drill). All acceptance criteria verified against the live stack. The retention/deletion *scaffolding*
+> the plan mentions is delivered concretely as the working erasure endpoint.
 
 **Objective:** Stand up the persistent storage layer (PostgreSQL, object storage) that catalog, billing, and metadata will depend on.
 
@@ -458,8 +471,8 @@ repository root.
 | # | Milestone | Complexity | Key Dependency | Status |
 |---|---|---|---|---|
 | 1 | Foundations & DevOps Infrastructure | M | — | ✅ Completed |
-| 2 | Authentication, Multi-Tenancy & Tenant Management | M | M1 | ⏳ Not started |
-| 3 | Data Layer & Storage Foundation | M | M1, M2 | ⏳ Not started |
+| 2 | Authentication, Multi-Tenancy & Tenant Management | M | M1 | ✅ Completed |
+| 3 | Data Layer & Storage Foundation | M | M1, M2 | ✅ Completed |
 | 4 | Catalog Ingestion Pipeline | L | M2, M3 | ⏳ Not started |
 | 5 | Embedding Service & Model Integration | L | M1, M4 | ⏳ Not started |
 | 6 | Vector Database & ANN Search Integration | L | M3, M5 | ⏳ Not started |

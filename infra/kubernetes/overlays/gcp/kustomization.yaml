@@ -16,7 +16,15 @@ patches:
   # rather than duplicating the whole manifest.
   - target:
       kind: Deployment
-      name: hello-world-service
+      name: auth-service
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          cbir.dev/target-cloud: "gcp"
+  - target:
+      kind: Deployment
+      name: catalog-service
     patch: |-
       - op: add
         path: /metadata/annotations

@@ -1,0 +1,62 @@
+# auth-service (Milestone 2). Cloud-agnostic base manifest.
+# Secrets (AUTH_JWT_SECRET, AUTH_ADMIN_TOKEN, DATABASE_URL, REDIS_URL) are
+# referenced from a Secret named cbir-auth-secrets, created out-of-band per
+# environment — never committed. Not applied to any cluster yet (infra is
+# prepared-but-dormant until a future deployment milestone).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: cbir-engine
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: cbir-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: auth-service:latest # Replaced by the CI-built tag once a real deploy exists.
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: cbir-auth-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: cbir-engine
+spec:
+  selector:
+    app.kubernetes.io/name: auth-service
+  ports:
+    - port: 80
+      targetPort: 8000
