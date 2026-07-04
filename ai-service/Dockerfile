@@ -17,8 +17,15 @@ WORKDIR /build
 COPY shared/common-libs ./shared/common-libs
 COPY ai-service/requirements.txt ai-service/requirements-ml.txt ./
 RUN pip install --no-cache-dir --user -r requirements.txt ./shared/common-libs
+# Install torch AND torchvision from the SAME CPU wheel index so their compiled
+# ops match. torchvision is a transitive dependency of open-clip-torch (and is
+# touched by transformers' AutoProcessor for SigLIP 2's fast image processor);
+# if it is instead pulled from PyPI it can mismatch the CPU torch build and
+# fail with "operator torchvision::nms does not exist", which surfaces as
+# "Could not import module 'AutoProcessor'". Installing the matched pair first
+# means the later requirements-ml.txt install keeps this torchvision.
 RUN if [ "$INSTALL_ML" = "true" ]; then \
-        pip install --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu && \
+        pip install --no-cache-dir --user torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
         pip install --no-cache-dir --user -r requirements-ml.txt ; \
     fi
 
@@ -35,7 +42,13 @@ ENV PATH=/home/appuser/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN chown -R appuser:appuser /app
+# Pre-create the Hugging Face cache dir owned by appuser. When the SigLIP 2
+# overlay mounts a fresh named volume here (HF_HOME), Docker initializes the
+# volume with THIS directory's ownership (uid 1000), so the non-root user can
+# write the downloaded model weights. Without this the volume is root-owned and
+# the download fails with PermissionError.
+RUN mkdir -p /home/appuser/.cache/huggingface \
+    && chown -R appuser:appuser /app /home/appuser/.cache
 USER appuser
 
 EXPOSE 8000

@@ -105,19 +105,87 @@ $("uploadBtn").onclick = async () => {
 
 // --- search ------------------------------------------------------------------
 
+// Escape untrusted text (tenant-supplied metadata) before putting it in HTML.
+function esc(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
+}
+
+// A search result already includes the item_id; we fetch the image's signed
+// download URL from the EXISTING catalog endpoint (no backend change) and use
+// it as the thumbnail's src. Image <img> loads are not CORS-gated, so the
+// browser can display the MinIO/S3 signed URL directly.
+async function fetchThumbnail(itemId) {
+  try {
+    const data = await api(`${state.catalogUrl}/v1/items/${itemId}`, { headers: headers() });
+    return data.download_url;
+  } catch (_) {
+    return null;
+  }
+}
+
+// The result score is the COSINE SIMILARITY returned by the vector search
+// (Qdrant collections use the Cosine metric): higher = more similar, in the
+// range -1..1. It is NOT a distance and NOT a confidence percentage, so we
+// label it clearly and explain it on hover.
+const SIMILARITY_TOOLTIP =
+  "Cosine similarity between your query and this image (range -1 to 1; " +
+  "higher means more similar). This is the raw vector-search score — " +
+  "not a confidence percentage.";
+
 function renderResults(payload) {
-  const cached = payload.cached ? " (cached)" : "";
+  const cached = payload.cached ? " · cached" : "";
   const reranked = payload.reranked ? " · reranked" : "";
+  const results = payload.results;
+  // Best match is first (results are returned ranked). Used only for a
+  // RELATIVE similarity bar — it does not change ranking or the shown score.
+  const topScore = results.length ? results[0].score : 1;
+
   $("results").innerHTML =
-    `<div class="hint">${payload.count} results${cached}${reranked}</div>` +
-    payload.results
-      .map(
-        (r) =>
-          `<div class="item"><span class="id">${r.item_id.slice(0, 8)}…</span>` +
-          `<span>${JSON.stringify(r.metadata)}</span>` +
-          `<span class="score">${r.score.toFixed(4)}</span></div>`
-      )
-      .join("");
+    `<div class="results-header">` +
+    `<span class="hint">${payload.count} result${payload.count === 1 ? "" : "s"}${cached}${reranked}</span>` +
+    `<span class="metric-note" title="${SIMILARITY_TOOLTIP}">ranked by cosine similarity ⓘ</span>` +
+    `</div>` +
+    `<div class="results-grid">` +
+    results
+      .map((r, i) => {
+        const category =
+          r.metadata && r.metadata.category ? esc(r.metadata.category) : "uncategorized";
+        const similarity = r.score.toFixed(3);
+        const relative = topScore > 0 ? Math.max(0, Math.min(100, (r.score / topScore) * 100)) : 0;
+        return (
+          `<div class="result-card">` +
+          `<div class="thumb-wrap">` +
+          `<img class="thumb" id="thumb-${esc(r.item_id)}" alt="${category}" />` +
+          `<span class="rank-badge">#${i + 1}</span>` +
+          `<span class="cat-badge" title="category: ${category}">${category}</span>` +
+          `</div>` +
+          `<div class="result-meta">` +
+          `<div class="metric" title="${SIMILARITY_TOOLTIP}">` +
+          `<span class="metric-label">Similarity</span>` +
+          `<span class="metric-value">${similarity}</span>` +
+          `</div>` +
+          `<div class="sim-bar" title="similarity relative to the top match">` +
+          `<span style="width:${relative.toFixed(1)}%"></span></div>` +
+          `<span class="id" title="item ${esc(r.item_id)}">${esc(r.item_id.slice(0, 8))}…</span>` +
+          `</div>` +
+          `</div>`
+        );
+      })
+      .join("") +
+    `</div>`;
+
+  // Load each thumbnail from the existing signed-URL endpoint.
+  for (const r of payload.results) {
+    fetchThumbnail(r.item_id).then((url) => {
+      const img = document.getElementById(`thumb-${r.item_id}`);
+      if (!img) return;
+      if (url) img.src = url;
+      else img.closest(".thumb-wrap").classList.add("missing");
+    });
+  }
 }
 
 function parseFilters() {
