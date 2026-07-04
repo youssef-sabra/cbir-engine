@@ -3,125 +3,183 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CBIR Engine - Dashboard</title>
+    <title>CBIR Engine</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
-    <header class="hero">
-      <div class="hero-content">
-        <span class="eyebrow">Content-Based Image Retrieval</span>
-        <h1>CBIR Engine Dashboard</h1>
-        <p class="tagline">
-          Manage catalog images, test visual search, and explore text-to-image retrieval from one local
-          self-serve workspace.
-        </p>
-      </div>
-      <div class="hero-actions">
-        <a class="ghost-link" href="#connect">Connect API</a>
-        <a class="ghost-link" href="#search">Try search</a>
-      </div>
-    </header>
-
-    <main class="shell">
-      <section class="workflow" aria-label="Dashboard workflow">
-        <article class="step-card">
-          <span class="step-number">01</span>
-          <h2>Connect</h2>
-          <p>Store local service URLs and the tenant API key used by the dashboard.</p>
-        </article>
-        <article class="step-card">
-          <span class="step-number">02</span>
-          <h2>Catalog</h2>
-          <p>Upload images, attach metadata, and refresh ingestion status.</p>
-        </article>
-        <article class="step-card">
-          <span class="step-number">03</span>
-          <h2>Search</h2>
-          <p>Run text, image, and composed visual search requests.</p>
-        </article>
-      </section>
-
-      <section class="card" id="connect">
-        <div class="section-header">
-          <span class="section-kicker">Step 1</span>
-          <h2>Connect to local services</h2>
-        </div>
-        <p class="hint">
-          Paste an API key from <code>python scripts/provision_tenant.py</code>. The endpoints default to
-          the local Docker Compose stack.
-        </p>
-
-        <div class="form-grid">
-          <label>
-            API key
-            <input id="apiKey" type="password" placeholder="cbir_..." autocomplete="off" />
-          </label>
-          <label>
-            Catalog URL
-            <input id="catalogUrl" value="http://localhost:8002" />
-          </label>
-          <label>
-            Query URL
-            <input id="queryUrl" value="http://localhost:8004" />
-          </label>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div>
+            <strong>CBIR Engine</strong>
+            <span>Visual Search</span>
+          </div>
         </div>
 
-        <div class="section-actions">
-          <button id="saveConn">Save connection</button>
-          <span id="connStatus" class="status"></span>
+        <nav class="side-nav" aria-label="Dashboard navigation">
+          <a class="active" href="#connect">⌂ Overview</a>
+          <a href="#catalog">▧ Catalog</a>
+          <a href="#search">⌕ Search</a>
+          <a href="#results">▥ Results</a>
+        </nav>
+
+        <section class="status-panel" aria-label="System status">
+          <h2>Local Stack</h2>
+          <p class="status-pill">● Ready for testing</p>
+          <ul>
+            <li><span></span> Catalog Service <b>Local</b></li>
+            <li><span></span> Query Service <b>Local</b></li>
+            <li><span></span> AI Service <b>Internal</b></li>
+            <li><span></span> Vector Search <b>Enabled</b></li>
+          </ul>
+        </section>
+
+        <div class="sidebar-footer">
+          <strong>CBIR Engine</strong>
+          <span>v1.0.0</span>
         </div>
-      </section>
+      </aside>
 
-      <section class="card" id="catalog">
-        <div class="section-header">
-          <span class="section-kicker">Step 2</span>
-          <h2>Catalog management</h2>
-        </div>
-        <p class="hint">
-          Upload an image, add optional JSON metadata, and confirm it for indexing.
-        </p>
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Content-Based Image Retrieval</p>
+            <h1><span>CBIR Engine</span></h1>
+            <p class="tagline">
+              Manage catalog images, test visual search, and explore text-to-image retrieval.
+            </p>
+          </div>
+        </header>
 
-        <div class="row">
-          <input type="file" id="uploadFile" accept="image/*" />
-          <input id="uploadMeta" placeholder='metadata JSON e.g. {"category":"shoes"}' />
-          <button id="uploadBtn">Upload &amp; index</button>
-        </div>
+        <section class="dashboard-grid" aria-label="Dashboard tools">
+          <section class="panel connect-panel" id="connect">
+            <div class="panel-heading">
+              <span class="number-badge">1</span>
+              <div>
+                <h2>Connect to Services</h2>
+                <p>Enter your API key and service URLs to get started.</p>
+              </div>
+            </div>
 
-        <button id="refreshBtn" class="secondary">Refresh catalog</button>
-        <div id="catalogList" class="list"></div>
-      </section>
+            <div class="field-stack">
+              <label>
+                API Key
+                <input id="apiKey" type="password" placeholder="cbir_..." autocomplete="off" />
+              </label>
 
-      <section class="card" id="search">
-        <div class="section-header">
-          <span class="section-kicker">Step 3</span>
-          <h2>Search playground</h2>
-        </div>
-        <p class="hint">
-          Compare text search, image search, and compositional search using the same public APIs.
-        </p>
+              <label>
+                Catalog Service URL
+                <input id="catalogUrl" value="http://localhost:8002" />
+              </label>
 
-        <div class="row">
-          <input id="textQuery" placeholder="text query e.g. red running shoes" />
-          <button id="textSearchBtn">Search by text</button>
-        </div>
+              <label>
+                Query Service URL
+                <input id="queryUrl" value="http://localhost:8004" />
+              </label>
+            </div>
 
-        <div class="row">
-          <input type="file" id="imageQuery" accept="image/*" />
-          <input id="modifier" placeholder="optional modifier e.g. in blue" />
-          <button id="imageSearchBtn">Search by image</button>
-        </div>
+            <button id="saveConn" class="primary-action">✓ Save &amp; Connect</button>
+            <span id="connStatus" class="status"></span>
+          </section>
 
-        <div class="row">
-          <input id="filters" placeholder='optional filters JSON e.g. {"category":"shoes"}' />
-          <label class="inline">
-            top&nbsp;K
-            <input id="topK" type="number" value="10" min="1" max="100" />
-          </label>
-        </div>
+          <section class="panel catalog-panel" id="catalog">
+            <div class="panel-heading">
+              <span class="number-badge">2</span>
+              <div>
+                <h2>Catalog Management</h2>
+                <p>Upload images to your catalog and manage ingestion.</p>
+              </div>
+            </div>
 
-        <div id="results" class="list"></div>
-      </section>
-    </main>
+            <label class="drop-zone" for="uploadFile">
+              <input type="file" id="uploadFile" accept="image/*" />
+              <span class="upload-icon">☁</span>
+              <strong>Choose an image to upload</strong>
+              <em>click to browse</em>
+              <small>Supports JPG, PNG, WebP</small>
+            </label>
+
+            <label class="metadata-field">
+              Metadata Optional
+              <input id="uploadMeta" placeholder='{"category":"shoes", "color":"blue"}' />
+            </label>
+
+            <div class="button-row">
+              <button id="uploadBtn" class="primary-action">⇧ Upload &amp; Index Image</button>
+              <button id="refreshBtn" class="secondary">Refresh catalog</button>
+            </div>
+          </section>
+
+          <section class="panel search-panel" id="search">
+            <div class="panel-heading">
+              <span class="number-badge purple">3</span>
+              <div>
+                <h2>Search Playground</h2>
+                <p>Test text, image, and compositional search.</p>
+              </div>
+            </div>
+
+            <label>
+              Search Query
+              <input id="textQuery" placeholder="e.g., red running shoes" />
+            </label>
+
+            <div class="split-row">
+              <label>
+                Filters JSON Optional
+                <input id="filters" placeholder='{"category":"shoes"}' />
+              </label>
+
+              <label>
+                Top K Results
+                <input id="topK" type="number" value="10" min="1" max="100" />
+              </label>
+            </div>
+
+            <label class="compact-file" for="imageQuery">
+              <input type="file" id="imageQuery" accept="image/*" />
+              Choose reference image
+            </label>
+
+            <input id="modifier" placeholder="optional modifier e.g. in blue" />
+
+            <div class="button-row search-actions">
+              <button id="textSearchBtn" class="primary-action gradient">⌕ Search by Text</button>
+              <button id="imageSearchBtn" class="primary-action">Search by Image</button>
+            </div>
+          </section>
+        </section>
+
+        <section class="lower-grid">
+          <section class="panel">
+            <div class="list-heading">
+              <div>
+                <h2>Recent Catalog Items</h2>
+                <p>Latest items in your catalog</p>
+              </div>
+            </div>
+
+            <div id="catalogList" class="list catalog-list"></div>
+          </section>
+
+          <section class="panel results-panel" id="results-section">
+            <div class="list-heading">
+              <div>
+                <h2>Search Results</h2>
+                <p>Ranked visual matches</p>
+              </div>
+            </div>
+
+            <div id="results" class="list results-list"></div>
+          </section>
+        </section>
+
+        <footer class="page-footer">
+          <span>Built for the CBIR Engine Project</span>
+        </footer>
+      </main>
+    </div>
 
     <script src="app.js"></script>
   </body>
