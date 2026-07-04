@@ -94,3 +94,131 @@ button:hover { filter: brightness(1.08); }
 .badge.indexed { background: rgba(52, 211, 153, 0.2); color: var(--ok); }
 .badge.failed { background: rgba(248, 113, 113, 0.2); color: var(--err); }
 .score { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* --- search result thumbnails --- */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+}
+.result-card {
+  background: #0d1220;
+  border: 1px solid var(--accent-2);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.thumb-wrap {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #070a12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* placeholder shown while the signed URL loads or when it's missing */
+.thumb-wrap::before {
+  content: "loading…";
+  position: absolute;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.thumb-wrap.missing::before { content: "no image"; }
+
+/* results header: count + a one-line note explaining the metric */
+.results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.metric-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: help;
+  border-bottom: 1px dotted var(--muted);
+}
+
+/* modern card polish + overlay badges */
+.result-card { transition: transform 0.12s ease, border-color 0.12s ease; }
+.result-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+.rank-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(7, 10, 18, 0.72);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  backdrop-filter: blur(2px);
+}
+.cat-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  max-width: calc(100% - 12px);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(79, 140, 255, 0.85);
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0.65rem;
+}
+/* labeled similarity: small muted label + prominent value */
+.metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: help;
+}
+.metric-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.metric-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+/* thin bar showing similarity RELATIVE to the top match (not absolute confidence) */
+.sim-bar {
+  height: 4px;
+  background: var(--accent-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.sim-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.result-meta .id { font-family: ui-monospace, monospace; color: var(--muted); font-size: 0.72rem; }

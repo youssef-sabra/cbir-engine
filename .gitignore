@@ -36,6 +36,7 @@ crash.log
 
 # Database backup dumps (see docs/RUNBOOK_BACKUP_RESTORE.md)
 backups/
+caltech-101/
 
 # IDE
 .vscode/

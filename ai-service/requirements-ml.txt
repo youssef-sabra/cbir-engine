@@ -6,9 +6,12 @@
 #   pip install -r requirements.txt -r requirements-ml.txt
 #
 # The Dockerfile installs these when built with --build-arg INSTALL_ML=true.
-# For CPU-only hosts, install torch from the CPU wheel index first:
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# For CPU-only hosts, install torch AND torchvision together from the CPU wheel
+# index FIRST so their compiled ops match (a mismatched torchvision fails with
+# "operator torchvision::nms does not exist"):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 torch>=2.2,<3.0
+torchvision   # matched to torch; required by open-clip-torch and by transformers' fast image processors
 transformers>=4.45,<5.0
 open-clip-torch>=2.24,<3.0
 sentencepiece>=0.2,<0.3   # SigLIP 2 tokenizer
