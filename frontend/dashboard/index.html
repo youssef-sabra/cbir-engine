@@ -1,58 +1,127 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CBIR Engine — Dashboard</title>
+    <title>CBIR Engine - Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header>
-      <h1>CBIR Engine</h1>
-      <span class="tagline">self-serve dashboard</span>
+    <header class="hero">
+      <div class="hero-content">
+        <span class="eyebrow">Content-Based Image Retrieval</span>
+        <h1>CBIR Engine Dashboard</h1>
+        <p class="tagline">
+          Manage catalog images, test visual search, and explore text-to-image retrieval from one local
+          self-serve workspace.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <a class="ghost-link" href="#connect">Connect API</a>
+        <a class="ghost-link" href="#search">Try search</a>
+      </div>
     </header>
 
-    <section class="card" id="connect">
-      <h2>1. Connect</h2>
-      <p class="hint">
-        Paste an API key (from <code>python scripts/provision_tenant.py</code>). The endpoints default to
-        the local stack.
-      </p>
-      <label>API key <input id="apiKey" type="password" placeholder="cbir_..." /></label>
-      <label>Catalog URL <input id="catalogUrl" value="http://localhost:8002" /></label>
-      <label>Query URL <input id="queryUrl" value="http://localhost:8004" /></label>
-      <button id="saveConn">Save</button>
-      <span id="connStatus" class="status"></span>
-    </section>
+    <main class="shell">
+      <section class="workflow" aria-label="Dashboard workflow">
+        <article class="step-card">
+          <span class="step-number">01</span>
+          <h2>Connect</h2>
+          <p>Store local service URLs and the tenant API key used by the dashboard.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-number">02</span>
+          <h2>Catalog</h2>
+          <p>Upload images, attach metadata, and refresh ingestion status.</p>
+        </article>
+        <article class="step-card">
+          <span class="step-number">03</span>
+          <h2>Search</h2>
+          <p>Run text, image, and composed visual search requests.</p>
+        </article>
+      </section>
 
-    <section class="card">
-      <h2>2. Catalog</h2>
-      <div class="row">
-        <input type="file" id="uploadFile" accept="image/*" />
-        <input id="uploadMeta" placeholder='metadata JSON e.g. {"category":"shoes"}' />
-        <button id="uploadBtn">Upload &amp; index</button>
-      </div>
-      <button id="refreshBtn" class="secondary">Refresh list</button>
-      <div id="catalogList" class="list"></div>
-    </section>
+      <section class="card" id="connect">
+        <div class="section-header">
+          <span class="section-kicker">Step 1</span>
+          <h2>Connect to local services</h2>
+        </div>
+        <p class="hint">
+          Paste an API key from <code>python scripts/provision_tenant.py</code>. The endpoints default to
+          the local Docker Compose stack.
+        </p>
 
-    <section class="card">
-      <h2>3. Search playground</h2>
-      <div class="row">
-        <input id="textQuery" placeholder="text query e.g. red running shoes" />
-        <button id="textSearchBtn">Search by text</button>
-      </div>
-      <div class="row">
-        <input type="file" id="imageQuery" accept="image/*" />
-        <input id="modifier" placeholder="optional modifier e.g. in blue (compositional)" />
-        <button id="imageSearchBtn">Search by image</button>
-      </div>
-      <div class="row">
-        <input id="filters" placeholder='optional filters JSON e.g. {"category":"shoes"}' />
-        <label class="inline">top&nbsp;K <input id="topK" type="number" value="10" min="1" max="100" /></label>
-      </div>
-      <div id="results" class="list"></div>
-    </section>
+        <div class="form-grid">
+          <label>
+            API key
+            <input id="apiKey" type="password" placeholder="cbir_..." autocomplete="off" />
+          </label>
+          <label>
+            Catalog URL
+            <input id="catalogUrl" value="http://localhost:8002" />
+          </label>
+          <label>
+            Query URL
+            <input id="queryUrl" value="http://localhost:8004" />
+          </label>
+        </div>
+
+        <div class="section-actions">
+          <button id="saveConn">Save connection</button>
+          <span id="connStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="card" id="catalog">
+        <div class="section-header">
+          <span class="section-kicker">Step 2</span>
+          <h2>Catalog management</h2>
+        </div>
+        <p class="hint">
+          Upload an image, add optional JSON metadata, and confirm it for indexing.
+        </p>
+
+        <div class="row">
+          <input type="file" id="uploadFile" accept="image/*" />
+          <input id="uploadMeta" placeholder='metadata JSON e.g. {"category":"shoes"}' />
+          <button id="uploadBtn">Upload &amp; index</button>
+        </div>
+
+        <button id="refreshBtn" class="secondary">Refresh catalog</button>
+        <div id="catalogList" class="list"></div>
+      </section>
+
+      <section class="card" id="search">
+        <div class="section-header">
+          <span class="section-kicker">Step 3</span>
+          <h2>Search playground</h2>
+        </div>
+        <p class="hint">
+          Compare text search, image search, and compositional search using the same public APIs.
+        </p>
+
+        <div class="row">
+          <input id="textQuery" placeholder="text query e.g. red running shoes" />
+          <button id="textSearchBtn">Search by text</button>
+        </div>
+
+        <div class="row">
+          <input type="file" id="imageQuery" accept="image/*" />
+          <input id="modifier" placeholder="optional modifier e.g. in blue" />
+          <button id="imageSearchBtn">Search by image</button>
+        </div>
+
+        <div class="row">
+          <input id="filters" placeholder='optional filters JSON e.g. {"category":"shoes"}' />
+          <label class="inline">
+            top&nbsp;K
+            <input id="topK" type="number" value="10" min="1" max="100" />
+          </label>
+        </div>
+
+        <div id="results" class="list"></div>
+      </section>
+    </main>
 
     <script src="app.js"></script>
   </body>
