@@ -203,6 +203,9 @@ services:
     build:
       context: .
       dockerfile: ai-service/Dockerfile
+      args:
+        INSTALL_ML: "true"
+
     container_name: cbir-ai-service
     restart: unless-stopped
     environment:
